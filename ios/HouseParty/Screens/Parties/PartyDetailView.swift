@@ -95,7 +95,7 @@ struct PartyDetailView: View {
                 )
             }
             Text(party.title)
-                .font(.system(size: 34, weight: .heavy, design: .rounded))
+                .font(.system(size: 34, weight: .heavy, design: Theme.fontDesign))
                 .foregroundStyle(Theme.hot)
             ChipCloud(interests: party.interests)
             HStack(spacing: 10) {
@@ -109,7 +109,7 @@ struct PartyDetailView: View {
 
     private func details(_ party: Party) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            InfoLine(icon: "calendar", color: Theme.orange, text: whenText(party))
+            InfoLine(icon: "calendar", color: Theme.blue, text: whenText(party))
             InfoLine(
                 icon: "mappin.and.ellipse", color: Theme.cyan,
                 text: [party.neighborhood, party.distanceKm.map { "\($0) km away" }]
@@ -266,7 +266,7 @@ struct PartyDetailView: View {
     private func guestColor(_ status: String) -> Color {
         switch status {
         case "accepted": Theme.mint
-        case "pending": Theme.orange
+        case "pending": Theme.blue
         default: Theme.textDim
         }
     }
@@ -283,7 +283,7 @@ struct InfoLine: View {
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(color)
                 .frame(width: 32, height: 32)
-                .background(color.opacity(0.15), in: .rect(cornerRadius: 10))
+                .background(color.opacity(0.15), in: .rect(cornerRadius: 6))
             Text(text).font(.subheadline.weight(.medium))
         }
     }
@@ -339,7 +339,7 @@ struct MatchPicker: View {
                         EmptyState(
                             title: "No matches yet",
                             message: "Like people in Discover. When they like you back, they show up here.",
-                            systemImage: "heart.fill"
+                            systemImage: "face.smiling.inverse"
                         )
                     }
                 }

@@ -6,7 +6,7 @@ gets {"type": "message", "message": {...}}.
 """
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, status
@@ -36,21 +36,36 @@ router = APIRouter(prefix="/chats", tags=["chat"])
 @router.get("")
 async def my_chats(user: OnboardedUser, session: Session) -> list[ChatOut]:
     rows = await chat_service.chats_for(session, user.id)
-    return [await presenters.chat_out(session, chat, joined) for chat, joined in rows]
+    hidden = await blocked_user_ids(session, user.id)
+    chats = [await presenters.chat_out(session, chat, joined, hidden) for chat, joined in rows]
+    # Most recently active first; chats nobody has spoken in yet go last.
+    return sorted(
+        chats, key=lambda c: c.last_message_at or datetime.min.replace(tzinfo=UTC), reverse=True
+    )
 
 
 @router.get("/{chat_id}/members")
 async def members(chat_id: uuid.UUID, user: OnboardedUser, session: Session) -> list[ChatMemberOut]:
-    await chat_service.get_chat_for_member(session, chat_id, user.id)
+    chat = await chat_service.get_chat_for_member(session, chat_id, user.id)
+    tally = await chat_service.vote_tally(session, chat, user.id)
     rows = await session.execute(
         select(ChatMember, User)
         .join(User, User.id == ChatMember.user_id)
         .where(ChatMember.chat_id == chat_id, ChatMember.left_at.is_(None))
     )
-    return [
-        ChatMemberOut(user=presenters.public_profile(member_user), is_host=member.is_host)
-        for member, member_user in rows
-    ]
+    out = []
+    for member, member_user in rows:
+        votes, needed, i_voted = tally.get(member_user.id, (0, 0, False))
+        out.append(
+            ChatMemberOut(
+                user=presenters.public_profile(member_user),
+                is_host=member.is_host,
+                votes_to_remove=votes,
+                votes_needed=needed,
+                i_voted=i_voted,
+            )
+        )
+    return out
 
 
 @router.get("/{chat_id}/messages")
@@ -114,6 +129,15 @@ async def vote_to_kick(
         await session.commit()
         await manager.disconnect_user(chat_id, data.user_id)
     return KickVoteOut(votes=votes, votes_needed=needed, removed=removed)
+
+
+@router.delete("/{chat_id}/kick-votes/{target_id}")
+async def take_back_vote(
+    chat_id: uuid.UUID, target_id: uuid.UUID, user: OnboardedUser, session: Session
+) -> SimpleOk:
+    chat = await chat_service.get_chat_for_member(session, chat_id, user.id)
+    await chat_service.withdraw_kick_vote(session, chat, user.id, target_id)
+    return SimpleOk()
 
 
 @router.websocket("/{chat_id}/ws")

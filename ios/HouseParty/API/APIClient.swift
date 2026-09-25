@@ -257,6 +257,10 @@ extension APIClient {
         try await send("POST", "chats/\(chatId)/kick-votes", body: UserRef(userId: userId))
     }
 
+    func takeBackVote(against userId: UUID, in chatId: UUID) async throws {
+        let _: OK = try await send("DELETE", "chats/\(chatId)/kick-votes/\(userId)")
+    }
+
     // Safety
     func report(_ report: NewReport) async throws {
         let _: OK = try await send("POST", "reports", body: report)

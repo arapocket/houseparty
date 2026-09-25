@@ -164,7 +164,11 @@ async def messages_out(session: AsyncSession, messages: list[Message]) -> list[M
     ]
 
 
-async def chat_out(session: AsyncSession, chat: Chat, joined: bool) -> ChatOut:
+async def chat_out(
+    session: AsyncSession, chat: Chat, joined: bool, hidden_senders: set[uuid.UUID] | None = None
+) -> ChatOut:
+    from app.services.chat import last_message
+
     member_count = (
         await session.scalar(
             select(func.count())
@@ -172,6 +176,9 @@ async def chat_out(session: AsyncSession, chat: Chat, joined: bool) -> ChatOut:
             .where(ChatMember.chat_id == chat.id, ChatMember.left_at.is_(None))
         )
     ) or 0
+    # Only show a preview to people in the chat.
+    latest = await last_message(session, chat.id, hidden_senders or set()) if joined else None
+    sender = await session.get(User, latest.sender_id) if latest and latest.sender_id else None
     return ChatOut(
         id=chat.id,
         party_id=chat.party_id,
@@ -182,4 +189,7 @@ async def chat_out(session: AsyncSession, chat: Chat, joined: bool) -> ChatOut:
         # Only reunion chats are opt-in. chats_for() already hides reunion
         # chats from anyone voted out, so not joined means they may join.
         can_join=(chat.kind == CHAT_REUNION and not joined),
+        last_message=latest.body if latest else None,
+        last_message_at=latest.created_at if latest else None,
+        last_sender_name=sender.first_name if sender else None,
     )

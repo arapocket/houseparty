@@ -235,6 +235,40 @@ async def cast_kick_vote(
     return votes, needed, False
 
 
+async def vote_tally(
+    session: AsyncSession, chat: Chat, viewer_id: uuid.UUID
+) -> dict[uuid.UUID, tuple[int, int, bool]]:
+    """For each member of a reunion chat: (votes against them, votes needed,
+    whether the viewer is one of those votes). Never says who else voted."""
+    if chat.kind != CHAT_REUNION:
+        return {}
+    members = [m.user_id for m in await active_members(session, chat.id)]
+    rows = await session.execute(
+        select(KickVote.target_id, KickVote.voter_id).where(
+            KickVote.chat_id == chat.id, KickVote.voter_id.in_(members)
+        )
+    )
+    votes: dict[uuid.UUID, list[uuid.UUID]] = {}
+    for target_id, voter_id in rows:
+        votes.setdefault(target_id, []).append(voter_id)
+
+    tally = {}
+    for member_id in members:
+        against = votes.get(member_id, [])
+        needed = votes_needed(len(members) - 1)
+        tally[member_id] = (len(against), needed, viewer_id in against)
+    return tally
+
+
+async def last_message(
+    session: AsyncSession, chat_id: uuid.UUID, hidden_senders: set[uuid.UUID]
+) -> Message | None:
+    stmt = select(Message).where(Message.chat_id == chat_id, Message.deleted_at.is_(None))
+    if hidden_senders:
+        stmt = stmt.where(Message.sender_id.not_in(list(hidden_senders)))
+    return await session.scalar(stmt.order_by(Message.created_at.desc()).limit(1))
+
+
 async def get_chat_for_member(
     session: AsyncSession, chat_id: uuid.UUID, user_id: uuid.UUID
 ) -> Chat:
@@ -299,6 +333,20 @@ async def leave(session: AsyncSession, chat: Chat, user_id: uuid.UUID) -> None:
         if party is not None and party.host_id == user_id:
             raise RuleError("You're the host, so you can't leave the planning chat.")
     await remove_member(session, chat, user_id)
+
+
+async def withdraw_kick_vote(
+    session: AsyncSession, chat: Chat, voter_id: uuid.UUID, target_id: uuid.UUID
+) -> None:
+    """Changed your mind: take your vote back. Fine if there wasn't one."""
+    await session.execute(
+        delete(KickVote).where(
+            KickVote.chat_id == chat.id,
+            KickVote.target_id == target_id,
+            KickVote.voter_id == voter_id,
+        )
+    )
+    await session.flush()
 
 
 class ConnectionManager:

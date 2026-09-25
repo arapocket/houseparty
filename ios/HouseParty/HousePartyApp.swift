@@ -4,6 +4,20 @@ import SwiftUI
 struct HousePartyApp: App {
     @State private var model = AppModel()
 
+    init() {
+        // Navigation bar titles are drawn by UIKit, which ignores SwiftUI's
+        // font settings, so give them the app's typeface here.
+        let bar = UINavigationBar.appearance()
+        bar.titleTextAttributes = [
+            .font: Theme.uiFont(size: 17, weight: .semibold),
+            .foregroundColor: UIColor(Theme.text),
+        ]
+        bar.largeTitleTextAttributes = [
+            .font: Theme.uiFont(size: 34, weight: .bold),
+            .foregroundColor: UIColor(Theme.text),
+        ]
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -12,7 +26,7 @@ struct HousePartyApp: App {
                 // Always dark: it's a nightlife app.
                 .preferredColorScheme(.dark)
                 .tint(Theme.pink)
-                .fontDesign(.rounded)
+                .fontDesign(Theme.fontDesign)
         }
     }
 }
@@ -45,7 +59,7 @@ struct MainTabs: View {
                 PartiesView()
             }
             Tab("Chats", systemImage: "bubble.left.and.bubble.right.fill") {
-                ComingSoon(title: "Chats")
+                ChatsView()
             }
             Tab("Me", systemImage: "person.crop.circle.fill") {
                 ProfileView()

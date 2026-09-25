@@ -101,7 +101,7 @@ struct DiscoverCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             if card.suggestedForPartyId != nil {
-                Badge(text: "Introduced by a friend", systemImage: "hand.wave.fill", color: Theme.orange)
+                Badge(text: "Introduced by a friend", systemImage: "hand.wave.fill", color: Theme.blue)
             }
 
             HStack(spacing: 12) {
@@ -111,11 +111,12 @@ struct DiscoverCardView: View {
                     Text(placeAndDistance)
                         .font(.subheadline)
                         .foregroundStyle(Theme.textDim)
+                    if card.user.downToParty {
+                        Badge(text: "down to party", systemImage: "flame.fill", color: Theme.mint)
+                            .padding(.top, 4)
+                    }
                 }
                 Spacer()
-                if card.user.downToParty {
-                    Badge(text: "down to party", systemImage: "flame.fill", color: Theme.mint)
-                }
             }
 
             // The headline: what you have in common.
@@ -142,7 +143,10 @@ struct DiscoverCardView: View {
                 .accessibilityLabel("Pass")
 
                 Button(action: onLike) {
-                    Label("Like", systemImage: "heart.fill")
+                    HStack(spacing: 8) {
+                        AcidSmiley(size: 24)
+                        Text("Like")
+                    }
                 }
                 .buttonStyle(.hot)
             }
@@ -171,10 +175,15 @@ struct MatchCelebration: View {
         ZStack {
             Theme.background.opacity(0.92).ignoresSafeArea()
             VStack(spacing: 20) {
-                Avatar(url: person.photoUrl, name: person.firstName, size: 110)
-                    .shadow(color: Theme.pink.opacity(0.7), radius: 30)
+                ZStack(alignment: .bottomTrailing) {
+                    Avatar(url: person.photoUrl, name: person.firstName, size: 110)
+                        .shadow(color: Theme.pink.opacity(0.7), radius: 30)
+                    AcidSmiley(size: 54, spinning: true)
+                        .shadow(color: AcidSmiley.yellow.opacity(0.6), radius: 14)
+                        .offset(x: 14, y: 8)
+                }
                 Text("It's a match!")
-                    .font(.system(size: 44, weight: .black, design: .rounded))
+                    .font(.system(size: 44, weight: .black, design: Theme.fontDesign))
                     .foregroundStyle(Theme.hot)
                 Text("You and \(person.firstName ?? "they") liked each other.\n"
                     + "You can invite each other to parties now.")
@@ -209,7 +218,7 @@ struct PassedView: View {
                         }
                         Spacer()
                         Button { like(person) } label: {
-                            Image(systemName: "heart.fill")
+                            AcidSmiley(size: 22)
                         }
                         .buttonStyle(.soft(Theme.pink))
                         .accessibilityLabel("Like \(person.user.firstName ?? "")")

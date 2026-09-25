@@ -5,6 +5,27 @@
 import SwiftUI
 
 enum Theme {
+    /// The typeface for the whole app. .serif is Apple's "New York",
+    /// .monospaced is "SF Mono". Change it here and every screen follows.
+    static let fontDesign: Font.Design = .serif
+
+    /// The same typeface for the few places UIKit draws text itself.
+    static func uiFont(size: CGFloat, weight: UIFont.Weight) -> UIFont {
+        let base = UIFont.systemFont(ofSize: size, weight: weight)
+        let design: UIFontDescriptor.SystemDesign = switch fontDesign {
+        case .serif: .serif
+        case .monospaced: .monospaced
+        case .rounded: .rounded
+        default: .default
+        }
+        guard let descriptor = base.fontDescriptor.withDesign(design) else { return base }
+        return UIFont(descriptor: descriptor, size: size)
+    }
+
+    /// Corner rounding: cards and bubbles, then buttons, fields and chips.
+    static let corner: CGFloat = 14
+    static let cornerSmall: CGFloat = 10
+
     // Night-time party palette: deep purple base, neon accents.
     static let background = Color(hex: 0x0E0A1A)
     static let surface = Color(hex: 0x1A1330)
@@ -15,21 +36,21 @@ enum Theme {
     static let textDim = Color(hex: 0xA99BC9)
 
     static let pink = Color(hex: 0xFF4D8D)
-    static let orange = Color(hex: 0xFFA94D)
+    static let blue = Color(hex: 0x3D8BFF)
     static let violet = Color(hex: 0x8B6CFF)
     static let mint = Color(hex: 0x3DDC97)
     static let cyan = Color(hex: 0x4CC9F0)
     static let yellow = Color(hex: 0xFFD166)
 
-    /// The signature pink → orange used for primary buttons and headings.
+    /// The signature pink → blue used for primary buttons and headings.
     static let hot = LinearGradient(
-        colors: [pink, orange], startPoint: .topLeading, endPoint: .bottomTrailing
+        colors: [pink, blue], startPoint: .topLeading, endPoint: .bottomTrailing
     )
 
     /// Every interest gets its own color, the same everywhere and for
     /// everyone ("Ramen" is always the same color).
     static func color(for interest: String) -> Color {
-        let palette = [pink, orange, violet, mint, cyan, yellow]
+        let palette = [pink, blue, violet, mint, cyan, yellow]
         // A simple, stable hash. Swift's own hashValue changes every launch.
         var hash: UInt32 = 5381
         for scalar in interest.lowercased().unicodeScalars {
@@ -83,8 +104,8 @@ extension View {
         self
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.surface, in: .rect(cornerRadius: 24))
-            .overlay(RoundedRectangle(cornerRadius: 24).stroke(Theme.stroke))
+            .background(Theme.surface, in: .rect(cornerRadius: Theme.corner))
+            .overlay(RoundedRectangle(cornerRadius: Theme.corner).stroke(Theme.stroke))
     }
 }
 
@@ -96,7 +117,7 @@ struct ScreenTitle: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 38, weight: .heavy, design: .rounded))
+            .font(.system(size: 38, weight: .heavy, design: Theme.fontDesign))
             .foregroundStyle(Theme.hot)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -142,7 +163,7 @@ struct HotButtonStyle: ButtonStyle {
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(Theme.hot, in: .capsule)
+            .background(Theme.hot, in: .rect(cornerRadius: Theme.cornerSmall))
             .shadow(color: Theme.pink.opacity(isEnabled ? 0.45 : 0), radius: 16, y: 6)
             .opacity(isEnabled ? 1 : 0.4)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
@@ -160,8 +181,8 @@ struct SoftButtonStyle: ButtonStyle {
             .foregroundStyle(tint)
             .padding(.vertical, 12)
             .padding(.horizontal, 18)
-            .background(Theme.surfaceHigh, in: .capsule)
-            .overlay(Capsule().stroke(Theme.stroke))
+            .background(Theme.surfaceHigh, in: .rect(cornerRadius: Theme.cornerSmall))
+            .overlay(RoundedRectangle(cornerRadius: Theme.cornerSmall).stroke(Theme.stroke))
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .animation(.snappy(duration: 0.15), value: configuration.isPressed)
     }
@@ -182,8 +203,8 @@ struct FieldBackground: ViewModifier {
         content
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .background(Theme.surfaceHigh, in: .rect(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.stroke))
+            .background(Theme.surfaceHigh, in: .rect(cornerRadius: Theme.cornerSmall))
+            .overlay(RoundedRectangle(cornerRadius: Theme.cornerSmall).stroke(Theme.stroke))
     }
 }
 

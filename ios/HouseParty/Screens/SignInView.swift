@@ -21,7 +21,7 @@ struct SignInView: View {
                         .foregroundStyle(Theme.hot)
                         .shadow(color: Theme.pink.opacity(0.6), radius: 20)
                     Text("House\nParty")
-                        .font(.system(size: 64, weight: .black, design: .rounded))
+                        .font(.system(size: 64, weight: .black, design: Theme.fontDesign))
                         .foregroundStyle(Theme.hot)
                         .lineSpacing(-12)
                     Text("Find your people. Throw the party.")

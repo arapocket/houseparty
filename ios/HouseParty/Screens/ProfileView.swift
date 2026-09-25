@@ -22,7 +22,7 @@ struct ProfileView: View {
                             Avatar(url: me.photoUrl, name: me.firstName, size: 72)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text([me.firstName, me.age.map(String.init)].compactMap { $0 }.joined(separator: ", "))
-                                    .font(.system(size: 30, weight: .heavy, design: .rounded))
+                                    .font(.system(size: 30, weight: .heavy, design: Theme.fontDesign))
                                 if let hood = me.neighborhood {
                                     Label(hood, systemImage: "mappin.and.ellipse")
                                         .foregroundStyle(Theme.textDim)

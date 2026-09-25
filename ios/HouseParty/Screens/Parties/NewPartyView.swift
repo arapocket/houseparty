@@ -9,6 +9,8 @@ struct NewPartyView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
+    /// Set by "Host again": the party this one follows on from.
+    var sourceParty: Party? = nil
     /// Called with the new party once it's saved.
     var onCreated: (Party) -> Void = { _ in }
 
@@ -69,7 +71,7 @@ struct NewPartyView: View {
                             .foregroundStyle(Theme.textDim)
                         PinPicker(pin: $pin)
                             .frame(height: 240)
-                            .clipShape(.rect(cornerRadius: 18))
+                            .clipShape(.rect(cornerRadius: Theme.corner))
                         TextField("", text: $neighborhood, prompt: Text("Neighborhood (everyone sees this)").foregroundStyle(Theme.textDim))
                             .fieldStyle()
                         TextField("", text: $address, prompt: Text("Apt, buzzer… (only for guests who say yes)").foregroundStyle(Theme.textDim))
@@ -87,7 +89,8 @@ struct NewPartyView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .partyScreen()
-            .navigationTitle("Host a party")
+            .navigationTitle(sourceParty == nil ? "Host a party" : "Host again")
+            .onAppear(perform: prefill)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -95,6 +98,16 @@ struct NewPartyView: View {
                 }
             }
         }
+    }
+
+    /// "Host again" starts from the old party: same name and interests,
+    /// new date and pin.
+    private func prefill() {
+        guard let sourceParty, title.isEmpty else { return }
+        title = sourceParty.title
+        description = sourceParty.description ?? ""
+        neighborhood = sourceParty.neighborhood
+        interests = sourceParty.interests
     }
 
     private func create() {
@@ -113,7 +126,8 @@ struct NewPartyView: View {
                     latitude: pin.latitude,
                     longitude: pin.longitude,
                     address: address.isEmpty ? nil : address,
-                    interests: interests
+                    interests: interests,
+                    sourcePartyId: sourceParty?.id
                 ))
                 onCreated(party)
                 dismiss()

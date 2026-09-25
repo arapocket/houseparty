@@ -23,8 +23,8 @@ struct InterestChip: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .foregroundStyle(shared ? Theme.background : color)
-        .background(shared ? color : color.opacity(0.12), in: .capsule)
-        .overlay(Capsule().stroke(color.opacity(shared ? 0 : 0.5)))
+        .background(shared ? color : color.opacity(0.12), in: .rect(cornerRadius: Theme.cornerSmall))
+        .overlay(RoundedRectangle(cornerRadius: Theme.cornerSmall).stroke(color.opacity(shared ? 0 : 0.5)))
     }
 }
 
@@ -105,7 +105,7 @@ struct Avatar: View {
         } placeholder: {
             let initial = name?.first.map(String.init) ?? "?"
             Text(initial)
-                .font(.system(size: size * 0.42, weight: .heavy, design: .rounded))
+                .font(.system(size: size * 0.42, weight: .heavy, design: Theme.fontDesign))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(
@@ -134,10 +134,12 @@ struct Badge: View {
             Text(text)
         }
         .font(.caption.weight(.bold))
+        .lineLimit(1)
+        .fixedSize()
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .foregroundStyle(color)
-        .background(color.opacity(0.15), in: .capsule)
+        .background(color.opacity(0.15), in: .rect(cornerRadius: Theme.cornerSmall))
     }
 }
 

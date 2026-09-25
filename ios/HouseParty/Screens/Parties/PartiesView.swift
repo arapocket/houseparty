@@ -130,7 +130,7 @@ struct PartyRow: View {
         }
         .card(padding: 14)
         .overlay(
-            RoundedRectangle(cornerRadius: 24)
+            RoundedRectangle(cornerRadius: Theme.corner)
                 .stroke(highlight ? AnyShapeStyle(Theme.hot) : AnyShapeStyle(.clear), lineWidth: 2)
         )
     }
@@ -172,12 +172,12 @@ struct DateBlock: View {
                 .font(.caption2.weight(.heavy))
                 .foregroundStyle(color)
             Text(date.formatted(.dateTime.day()))
-                .font(.system(size: 26, weight: .heavy, design: .rounded))
+                .font(.system(size: 26, weight: .heavy, design: Theme.fontDesign))
             Text(date.formatted(.dateTime.weekday(.abbreviated)))
                 .font(.caption2)
                 .foregroundStyle(Theme.textDim)
         }
         .frame(width: 56, height: 68)
-        .background(color.opacity(0.14), in: .rect(cornerRadius: 16))
+        .background(color.opacity(0.14), in: .rect(cornerRadius: Theme.cornerSmall))
     }
 }

@@ -133,11 +133,18 @@ struct Chat: Decodable, Identifiable {
     let memberCount: Int
     let joined: Bool
     let canJoin: Bool
+    let lastMessage: String?
+    let lastMessageAt: Date?
+    let lastSenderName: String?
 }
 
 struct ChatMember: Decodable, Identifiable {
     let user: PublicProfile
     let isHost: Bool
+    /// Reunion chats only. Anonymous: a count, never who voted.
+    let votesToRemove: Int
+    let votesNeeded: Int
+    let iVoted: Bool
 
     var id: UUID { user.id }
 }

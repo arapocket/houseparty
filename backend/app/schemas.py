@@ -296,6 +296,10 @@ class ChatOut(BaseModel):
     member_count: int
     joined: bool
     can_join: bool
+    # For the chat list preview. Empty until someone says something.
+    last_message: str | None = None
+    last_message_at: datetime | None = None
+    last_sender_name: str | None = None
 
 
 class MessageIn(BaseModel):
@@ -318,6 +322,11 @@ class KickVoteIn(BaseModel):
 class ChatMemberOut(BaseModel):
     user: PublicProfileOut
     is_host: bool
+    # Reunion chats only. Votes are anonymous: everyone sees the count,
+    # nobody sees who voted. `i_voted` is only about the person asking.
+    votes_to_remove: int = 0
+    votes_needed: int = 0
+    i_voted: bool = False
 
 
 class KickVoteOut(BaseModel):

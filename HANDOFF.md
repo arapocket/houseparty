@@ -87,6 +87,12 @@ comes up, but it's the current design:
 - Post-party "would you party with them again?" is **private only**. No public
   scores, no badges. Used internally to flag bad actors.
 
+**Chat votes** (answered session 2) — anonymous: members see a running
+count ("2 of 3 votes to remove"), never who voted. You can take a vote back.
+
+**Host again** (answered session 2) — opens the create screen pre-filled
+with the old title, description, neighborhood and interests.
+
 **Notifications** — user said "just do whatever". Suggested set: new match,
 invite received, invite accepted, new message (mutable per chat), party reminder.
 
@@ -183,10 +189,13 @@ Admin page: `http://localhost:8000/admin`, user `admin`, password from
 1. **iOS app** — `ios/`, open `ios/HouseParty.xcodeproj`. Built and tried in the
    iOS 27 simulator: sign-in, onboarding, Discover (+ Passed list), Parties
    (list, create with map pin, invite matches, accept/decline, suggest), Me.
-   **Still to build: the Chats tab** (planning + reunion chats, WebSocket,
-   vote-to-remove), photo upload, feedback after a party, "host again".
-   Look: always-dark "night party" theme, all colors/components in
-   `ios/HouseParty/Design/` — screens don't pick their own colors.
+   Chats too: live messages over WebSocket, reunion join, anonymous
+   vote-out with take-back, report/block by long-press, "host again".
+   **Still to build:** photo upload, "would you party again?" after a party,
+   push notifications, editing a party.
+   Look: always dark; serif (New York) everywhere; pink→blue accents; the
+   "like" is an acid-house smiley. All of it lives in `ios/HouseParty/Design/`
+   (font, corner sizes, colors) — screens don't pick their own.
 2. **Push notifications** — nothing sends any yet (needs APNs + device-token
    table). Suggested set: new match, invite received, invite accepted, new
    message (mutable per chat), party reminder.
@@ -210,8 +219,6 @@ Admin page: `http://localhost:8000/admin`, user `admin`, password from
 ## Open questions never answered
 
 - Photo storage and moderation of uploaded photos
-- Whether the "host again" action creates the party immediately or opens the
-  create screen pre-filled
 
 ## Machine notes
 

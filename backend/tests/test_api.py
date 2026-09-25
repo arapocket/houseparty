@@ -290,6 +290,9 @@ async def test_cancelling_keeps_chat_open(client: httpx.AsyncClient) -> None:
         json={"body": "Sorry all, rain check"},
     )
     assert r.status_code == 201
+    chat = (await client.get("/chats", headers=host.headers)).json()[0]
+    assert chat["last_message"] == "Sorry all, rain check"
+    assert chat["last_sender_name"] == "Host"
 
 
 async def test_introductions_surface_both_people(client: httpx.AsyncClient) -> None:
@@ -381,6 +384,21 @@ async def test_reunion_chat_is_opt_in_and_votes_can_remove_host(
     url = f"/chats/{reunion['id']}/kick-votes"
     r = await client.post(url, headers=guests[0].headers, json={"user_id": host.id})
     assert r.json() == {"votes": 1, "votes_needed": 2, "removed": False}
+
+    # Everyone sees the running count; only the voter knows they voted.
+    members_url = f"/chats/{reunion['id']}/members"
+    for person, voted in ((guests[0], True), (guests[2], False)):
+        rows = (await client.get(members_url, headers=person.headers)).json()
+        host_row = next(m for m in rows if m["user"]["id"] == host.id)
+        assert (host_row["votes_to_remove"], host_row["votes_needed"]) == (1, 2)
+        assert host_row["i_voted"] is voted
+        assert "voter" not in str(host_row)
+    # Changing your mind takes the vote back.
+    await client.delete(f"{url}/{host.id}", headers=guests[0].headers)
+    rows = (await client.get(members_url, headers=guests[0].headers)).json()
+    assert next(m for m in rows if m["user"]["id"] == host.id)["votes_to_remove"] == 0
+    await client.post(url, headers=guests[0].headers, json={"user_id": host.id})
+
     r = await client.post(url, headers=guests[1].headers, json={"user_id": host.id})
     assert r.json()["removed"] is True
 
