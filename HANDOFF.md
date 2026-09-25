@@ -75,6 +75,14 @@ comes up, but it's the current design:
 - The reunion chat should carry a **"host again"** action somewhere, creating a
   new party with the same group (`Party.source_party_id` exists for this).
 
+**Passes** (answered session 2)
+- Passes aren't final. A separate "Passed" screen lists everyone you passed
+  on, newest first, and you can like them from there (`GET /discover/passed`).
+
+**Party location** (answered session 2)
+- The host drops a pin for every party; it's required. Guests see only a
+  rounded distance from it until they accept.
+
 **Feedback/ratings**
 - Post-party "would you party with them again?" is **private only**. No public
   scores, no badges. Used internally to flag bad actors.
@@ -195,8 +203,12 @@ Admin page: `http://localhost:8000/admin`, user `admin`, password from
 
 ## Open questions never answered
 
-- Undo a pass in Discover, or are passes final?
 - Photo storage and moderation of uploaded photos
 - Whether the "host again" action creates the party immediately or opens the
   create screen pre-filled
-- How a party's location is set — host's saved location, or per-party pin
+
+## Machine notes
+
+- macOS 27 is installed. Until the Xcode license is accepted
+  (`sudo xcodebuild -license`), the system `python3` won't run; use
+  `uv run python` or `backend/.venv/bin/python` instead.

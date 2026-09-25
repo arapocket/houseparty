@@ -25,6 +25,8 @@ def party_json(**overrides) -> dict:
         "description": "Front to back, lights off.",
         "starts_at": (datetime.now(UTC) + timedelta(days=3)).isoformat(),
         "neighborhood": "Tribeca",
+        "latitude": 40.7163,
+        "longitude": -74.0086,
         "address": "12 Secret St, Apt 4",
         "interests": ["Radiohead"],
     }
@@ -477,3 +479,46 @@ async def test_blocked_people_disappear_from_shared_chats(client: httpx.AsyncCli
     assert bodies(r) == ["from Ben"]
     r = await client.get(f"/chats/{chat_id}/messages", headers=host.headers)
     assert bodies(r) == ["from Ana", "from Ben"]
+
+
+async def test_passed_list_and_changing_your_mind(client: httpx.AsyncClient) -> None:
+    me = await sign_up(client, "Me", ["Radiohead"])
+    ben = await sign_up(client, "Ben", ["Radiohead"])
+    cal = await sign_up(client, "Cal", ["Radiohead"])
+    for person in (ben, cal):
+        await client.post(
+            f"/discover/{person.id}/decision", headers=me.headers, json={"decision": "pass"}
+        )
+
+    passed = (await client.get("/discover/passed", headers=me.headers)).json()
+    assert [p["user"]["first_name"] for p in passed] == ["Cal", "Ben"]  # newest first
+    assert passed[0]["shared_interests"] == ["Radiohead"]
+
+    # Liking from the Passed list works like any like.
+    await client.post(f"/discover/{me.id}/decision", headers=ben.headers, json={"decision": "like"})
+    r = await client.post(
+        f"/discover/{ben.id}/decision", headers=me.headers, json={"decision": "like"}
+    )
+    assert r.json()["matched"] is True
+    passed = (await client.get("/discover/passed", headers=me.headers)).json()
+    assert [p["user"]["first_name"] for p in passed] == ["Cal"]
+
+
+async def test_party_needs_a_pin(client: httpx.AsyncClient) -> None:
+    host = await sign_up(client, "Host", ["Radiohead"])
+    body = party_json()
+    del body["latitude"], body["longitude"]
+    r = await client.post("/parties", headers=host.headers, json=body)
+    assert r.status_code == 422
+
+    party = (await client.post("/parties", headers=host.headers, json=party_json())).json()
+    r = await client.patch(
+        f"/parties/{party['id']}", headers=host.headers, json={"latitude": 40.73}
+    )
+    assert r.status_code == 422
+    r = await client.patch(
+        f"/parties/{party['id']}",
+        headers=host.headers,
+        json={"latitude": 40.73, "longitude": -73.99},
+    )
+    assert r.status_code == 200

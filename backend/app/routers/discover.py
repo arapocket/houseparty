@@ -7,7 +7,7 @@ from fastapi import APIRouter, Query
 
 from app import presenters
 from app.deps import OnboardedUser, Session
-from app.schemas import DecisionIn, DecisionOut, DiscoverCardOut
+from app.schemas import DecisionIn, DecisionOut, DiscoverCardOut, PassedOut
 from app.services import matching
 
 router = APIRouter(prefix="/discover", tags=["discover"])
@@ -29,6 +29,22 @@ async def discover(
             suggested_for_party_id=c.suggested_for_party_id,
         )
         for c in candidates
+    ]
+
+
+@router.get("/passed")
+async def passed(user: OnboardedUser, session: Session) -> list[PassedOut]:
+    """People you passed on. Like one from here and it counts like any other like."""
+    mine = {ui.interest_id for ui in user.interests}
+    return [
+        PassedOut(
+            user=presenters.public_profile(other),
+            shared_interests=[
+                ui.interest.display for ui in other.interests if ui.interest_id in mine
+            ],
+            passed_at=passed_at,
+        )
+        for other, passed_at in await matching.list_passed(session, user)
     ]
 
 

@@ -112,8 +112,8 @@ async def main(reset: bool) -> None:
             ends_at=None,
             neighborhood="SoHo",
             address="123 Example St, Apt 5",
-            latitude=None,
-            longitude=None,
+            latitude=CENTER[0],
+            longitude=CENTER[1],
             interests=["Kid A era Radiohead", "Natural wine"],
         )
         invite = await parties.invite(session, you, party, users["Maya"].id)

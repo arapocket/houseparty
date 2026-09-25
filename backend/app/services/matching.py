@@ -21,6 +21,7 @@ from app.config import settings
 from app.errors import RuleError
 from app.models import (
     DECISION_LIKE,
+    DECISION_PASS,
     PARTY_ACTIVE,
     SUGGESTION_MATCHED,
     SUGGESTION_PENDING,
@@ -196,6 +197,7 @@ async def record_decision(
     )
     if existing:
         existing.decision = decision
+        existing.created_at = utcnow()  # so the Passed list sorts by the latest pass
     else:
         session.add(Decision(actor_id=me.id, target_id=target_id, decision=decision))
     await session.flush()
@@ -246,6 +248,27 @@ async def record_decision(
 
     await session.flush()
     return match
+
+
+async def list_passed(session: AsyncSession, me: User) -> list[tuple[User, datetime]]:
+    """Everyone I passed on, most recent first, so I can change my mind.
+
+    People who have since blocked me (or I them), left, or been banned are
+    not shown.
+    """
+    excluded = await blocked_user_ids(session, me.id)
+    rows = await session.execute(
+        select(User, Decision.created_at)
+        .join(Decision, Decision.target_id == User.id)
+        .where(
+            Decision.actor_id == me.id,
+            Decision.decision == DECISION_PASS,
+            User.deleted_at.is_(None),
+            User.is_banned.is_(False),
+        )
+        .order_by(Decision.created_at.desc())
+    )
+    return [(user, passed_at) for user, passed_at in rows if user.id not in excluded]
 
 
 async def are_matched(session: AsyncSession, a: uuid.UUID, b: uuid.UUID) -> bool:

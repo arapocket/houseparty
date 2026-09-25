@@ -158,6 +158,15 @@ class DecisionIn(BaseModel):
         return value
 
 
+class PassedOut(BaseModel):
+    """One row in the "Passed" list. Liking someone from here uses the normal
+    POST /discover/{user_id}/decision."""
+
+    user: PublicProfileOut
+    shared_interests: list[str]
+    passed_at: datetime
+
+
 class DecisionOut(BaseModel):
     matched: bool
     match_id: uuid.UUID | None = None
@@ -182,9 +191,12 @@ class PartyIn(BaseModel):
     starts_at: AwareDatetime
     ends_at: AwareDatetime | None = None
     neighborhood: str = Field(min_length=1, max_length=80)
+    # The pin the host drops for this party. Guests only ever see a rounded
+    # distance from it; the exact spot and address wait until they accept.
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    # Free text for the details a pin can't carry: "Apt 4B, buzz twice".
     address: str | None = Field(default=None, max_length=300)
-    latitude: float | None = Field(default=None, ge=-90, le=90)
-    longitude: float | None = Field(default=None, ge=-180, le=180)
     interests: list[str] = Field(min_length=1, max_length=5)
     # Set by "host again" from a reunion chat.
     source_party_id: uuid.UUID | None = None
@@ -207,6 +219,15 @@ class PartyUpdateIn(BaseModel):
     address: str | None = Field(default=None, max_length=300)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
+
+    @model_validator(mode="after")
+    def pin_moves_as_a_pair(self) -> PartyUpdateIn:
+        sent = self.model_fields_set
+        if ("latitude" in sent) != ("longitude" in sent):
+            raise ValueError("Send latitude and longitude together to move the pin.")
+        if "latitude" in sent and (self.latitude is None or self.longitude is None):
+            raise ValueError("A party always needs a pin.")
+        return self
 
 
 class PartyOut(BaseModel):
