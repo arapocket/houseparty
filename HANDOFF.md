@@ -179,11 +179,10 @@ Admin page: `http://localhost:8000/admin`, user `admin`, password from
 3. **Photo upload** — only a `photo_url` field. Recommended: S3/R2 presigned
    URLs. Photo moderation undecided.
 4. `Interest.BLOCKED_WORDS` is still a two-item placeholder.
-5. Blocked users can still see each other's messages in a shared chat.
-6. `ConnectionManager` and the party-completion job assume one server
+5. `ConnectionManager` and the party-completion job assume one server
    process. Fine until there's a second one (then Redis pub/sub + a real
    scheduler).
-7. `suggest()` uses `LIKE '%term%'`; move to `pg_trgm` when it's slow.
+6. `suggest()` uses `LIKE '%term%'`; move to `pg_trgm` when it's slow.
 
 ## How the user works
 

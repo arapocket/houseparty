@@ -28,6 +28,7 @@ from app.schemas import (
 )
 from app.services import chat as chat_service
 from app.services.chat import manager
+from app.services.matching import blocked_user_ids
 
 router = APIRouter(prefix="/chats", tags=["chat"])
 
@@ -62,7 +63,10 @@ async def messages(
 ) -> list[MessageOut]:
     """Oldest first. Pass `before` (the oldest time you have) to page back."""
     await chat_service.get_chat_for_member(session, chat_id, user.id)
-    rows = await chat_service.history(session, chat_id, before=before, limit=limit)
+    hidden = await blocked_user_ids(session, user.id)
+    rows = await chat_service.history(
+        session, chat_id, before=before, limit=limit, hidden_senders=hidden
+    )
     return await presenters.messages_out(session, rows)
 
 
@@ -73,9 +77,11 @@ async def send_message(
     chat = await chat_service.get_chat_for_member(session, chat_id, user.id)
     message = await chat_service.post_message(session, chat, user.id, data.body)
     out = (await presenters.messages_out(session, [message]))[0]
+    blocked = await blocked_user_ids(session, user.id)
     # Save before telling anyone, so nobody sees a message that then fails.
     await session.commit()
-    await manager.broadcast(chat_id, {"type": "message", "message": out.model_dump(mode="json")})
+    payload = {"type": "message", "message": out.model_dump(mode="json")}
+    await manager.broadcast(chat_id, payload, skip_users=blocked)
     return out
 
 
@@ -141,12 +147,13 @@ async def chat_socket(websocket: WebSocket, chat_id: uuid.UUID, token: str | Non
                     chat = await chat_service.get_chat_for_member(session, chat_id, user.id)
                     message = await chat_service.post_message(session, chat, user.id, body)
                     out = (await presenters.messages_out(session, [message]))[0]
+                    blocked = await blocked_user_ids(session, user.id)
                     await session.commit()
                 except RuleError as error:
                     await websocket.send_json({"type": "error", "message": error.message})
                     continue
             payload = {"type": "message", "message": out.model_dump(mode="json")}
-            await manager.broadcast(chat_id, payload)
+            await manager.broadcast(chat_id, payload, skip_users=blocked)
     except WebSocketDisconnect:
         pass
     finally:

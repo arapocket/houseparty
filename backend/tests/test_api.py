@@ -443,3 +443,37 @@ async def test_delete_account(client: httpx.AsyncClient) -> None:
         await client.get("/interests/suggest", params={"q": "radio"}, headers=ben.headers)
     ).json()
     assert suggestions[0]["usage_count"] == 1
+
+
+async def test_blocked_people_disappear_from_shared_chats(client: httpx.AsyncClient) -> None:
+    host = await sign_up(client, "Host", ["Radiohead"])
+    ana = await sign_up(client, "Ana", ["Radiohead"])
+    ben = await sign_up(client, "Ben", ["Radiohead"])
+    party = (await client.post("/parties", headers=host.headers, json=party_json())).json()
+    for guest in (ana, ben):
+        await match(client, host, guest)
+        invite_id = (
+            await client.post(
+                f"/parties/{party['id']}/invites", headers=host.headers, json={"user_id": guest.id}
+            )
+        ).json()["id"]
+        await client.post(
+            f"/invites/{invite_id}/respond", headers=guest.headers, json={"accept": True}
+        )
+
+    chat_id = (await client.get("/chats", headers=host.headers)).json()[0]["id"]
+    for person, text in ((ana, "from Ana"), (ben, "from Ben")):
+        await client.post(f"/chats/{chat_id}/messages", headers=person.headers, json={"body": text})
+
+    await client.post("/blocks", headers=ana.headers, json={"user_id": ben.id})
+
+    def bodies(r: httpx.Response) -> list[str]:
+        return [m["body"] for m in r.json()]
+
+    # Neither sees the other; everyone else still sees both.
+    r = await client.get(f"/chats/{chat_id}/messages", headers=ana.headers)
+    assert bodies(r) == ["from Ana"]
+    r = await client.get(f"/chats/{chat_id}/messages", headers=ben.headers)
+    assert bodies(r) == ["from Ben"]
+    r = await client.get(f"/chats/{chat_id}/messages", headers=host.headers)
+    assert bodies(r) == ["from Ana", "from Ben"]

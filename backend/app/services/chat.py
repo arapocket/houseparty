@@ -158,9 +158,17 @@ async def post_message(
 
 
 async def history(
-    session: AsyncSession, chat_id: uuid.UUID, before: datetime | None = None, limit: int = 50
+    session: AsyncSession,
+    chat_id: uuid.UUID,
+    before: datetime | None = None,
+    limit: int = 50,
+    hidden_senders: set[uuid.UUID] | None = None,
 ) -> list[Message]:
+    """Messages oldest first. `hidden_senders` are people the reader has
+    blocked (or been blocked by); their messages are left out."""
     stmt = select(Message).where(Message.chat_id == chat_id, Message.deleted_at.is_(None))
+    if hidden_senders:
+        stmt = stmt.where(Message.sender_id.not_in(list(hidden_senders)))
     if before:
         stmt = stmt.where(Message.created_at < before)
     stmt = stmt.order_by(Message.created_at.desc()).limit(limit)
@@ -319,8 +327,15 @@ class ConnectionManager:
         if not room:
             self._rooms.pop(chat_id, None)
 
-    async def broadcast(self, chat_id: uuid.UUID, payload: dict) -> None:
-        for websocket in list(self._rooms.get(chat_id, {})):
+    async def broadcast(
+        self, chat_id: uuid.UUID, payload: dict, skip_users: set[uuid.UUID] | None = None
+    ) -> None:
+        """Send to everyone connected, except `skip_users` (people who have
+        blocked the sender, or been blocked by them)."""
+        skip_users = skip_users or set()
+        for websocket, user_id in list(self._rooms.get(chat_id, {}).items()):
+            if user_id in skip_users:
+                continue
             try:
                 await websocket.send_json(payload)
             except Exception:
