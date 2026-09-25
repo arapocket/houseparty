@@ -2,12 +2,12 @@
 
 import uuid
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, UploadFile, status
 
 from app import presenters
 from app.deps import CurrentUser, OnboardedUser, Session
-from app.schemas import InterestsIn, MeOut, ProfileIn, PublicProfileOut
-from app.services import profiles
+from app.schemas import InterestsIn, MeOut, PhotoOut, ProfileIn, PublicProfileOut
+from app.services import photos, profiles
 
 router = APIRouter(tags=["profile"])
 
@@ -27,6 +27,24 @@ async def update_me(data: ProfileIn, user: CurrentUser, session: Session) -> MeO
 @router.put("/me/interests")
 async def set_my_interests(data: InterestsIn, user: CurrentUser, session: Session) -> MeOut:
     await profiles.set_interests(session, user, data.interests)
+    return presenters.me(user)
+
+
+@router.post("/me/photo")
+async def upload_photo(photo: UploadFile, user: CurrentUser, session: Session) -> PhotoOut:
+    """Send the photo as a multipart form field called "photo". It's live
+    right away unless the automatic check flags it for a person to review."""
+    raw = await photo.read(photos.MAX_UPLOAD_BYTES + 1)
+    live = await photos.upload_profile_photo(session, user, raw)
+    return PhotoOut(live=live, me=presenters.me(user))
+
+
+@router.delete("/me/photo")
+async def remove_photo(user: CurrentUser, session: Session) -> MeOut:
+    user.photo_url = None
+    user.pending_photo_url = None
+    user.pending_photo_reason = None
+    await session.flush()
     return presenters.me(user)
 
 

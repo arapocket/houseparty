@@ -79,6 +79,13 @@ final class AppModel {
         phase = updated.needsOnboarding ? .onboarding : .ready
     }
 
+    /// Returns true if the photo is live, false if it's waiting for review.
+    func uploadPhoto(jpeg: Data) async throws -> Bool {
+        let result = try await api.uploadPhoto(jpeg: jpeg)
+        me = result.me
+        return result.live
+    }
+
     func deleteAccount() async throws {
         try await api.deleteAccount()
         signOut()

@@ -52,8 +52,14 @@ struct RootView: View {
 struct MainTabs: View {
     var body: some View {
         TabView {
-            Tab("Discover", systemImage: "binoculars.fill") {
+            Tab {
                 DiscoverView()
+            } label: {
+                Label {
+                    Text("Match")
+                } icon: {
+                    Image(uiImage: EmojiIcon.image("🤝"))
+                }
             }
             Tab("Parties", image: "SoloCup") {
                 PartiesView()

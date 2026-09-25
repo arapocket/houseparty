@@ -15,6 +15,7 @@ from collections.abc import AsyncIterator
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.admin import mount_admin
 from app.config import settings
@@ -32,6 +33,7 @@ from app.routers import (
     safety,
 )
 from app.services.parties import complete_finished_parties
+from app.services.photos import UPLOAD_DIR
 
 log = logging.getLogger("houseparty")
 
@@ -88,3 +90,9 @@ for module in (auth, profile, interests, discover, matches, parties, invites, ch
     app.include_router(module.router)
 
 mount_admin(app)
+
+# In dev, photos live in backend/uploads and this server hands them out.
+# In production they come straight from R2 and this isn't used.
+if settings.storage_backend == "local":
+    UPLOAD_DIR.mkdir(exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")

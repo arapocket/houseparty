@@ -123,6 +123,8 @@ async def delete_account(session: AsyncSession, user: User) -> None:
     user.first_name = None
     user.bio = None
     user.photo_url = None
+    user.pending_photo_url = None
+    user.pending_photo_reason = None
     user.neighborhood = None
     user.latitude = None
     user.longitude = None

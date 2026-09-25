@@ -106,7 +106,6 @@ class ProfileIn(BaseModel):
     birthdate: date | None = None
     bio: str | None = Field(default=None, max_length=300)
     neighborhood: str | None = Field(default=None, max_length=80)
-    photo_url: str | None = Field(default=None, max_length=500)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
     search_radius_km: int | None = Field(
@@ -130,6 +129,8 @@ class PublicProfileOut(BaseModel):
 
 class MeOut(PublicProfileOut):
     phone: str
+    # True while a newly uploaded photo waits for a person to check it.
+    photo_in_review: bool = False
     search_radius_km: int
     invite_cap: int
     needs_onboarding: bool
@@ -358,6 +359,11 @@ class FeedbackIn(BaseModel):
     user_id: uuid.UUID
     would_party_again: bool
     note: str | None = Field(default=None, max_length=1000)
+
+
+class PhotoOut(BaseModel):
+    live: bool
+    me: MeOut
 
 
 class SimpleOk(BaseModel):

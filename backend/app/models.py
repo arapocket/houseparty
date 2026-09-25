@@ -91,6 +91,10 @@ class User(Base, TimestampMixin):
     birthdate: Mapped[date | None] = mapped_column(Date)
     bio: Mapped[str | None] = mapped_column(String(300))
     photo_url: Mapped[str | None] = mapped_column(String(500))
+    # A new photo the automatic check flagged. Stays out of sight until an
+    # admin approves it; photo_url keeps showing the old one meanwhile.
+    pending_photo_url: Mapped[str | None] = mapped_column(String(500))
+    pending_photo_reason: Mapped[str | None] = mapped_column(String(200))
 
     # Never returned to other users. Only a rounded distance is exposed.
     neighborhood: Mapped[str | None] = mapped_column(String(80))

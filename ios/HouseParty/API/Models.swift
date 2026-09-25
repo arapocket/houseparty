@@ -41,6 +41,14 @@ struct Me: Decodable {
     let searchRadiusKm: Int
     let inviteCap: Int
     let needsOnboarding: Bool
+    /// A new photo is waiting for a person to check it.
+    let photoInReview: Bool
+}
+
+struct PhotoResult: Decodable {
+    /// False when the automatic check held it back for review.
+    let live: Bool
+    let me: Me
 }
 
 struct InterestSuggestion: Decodable, Hashable {

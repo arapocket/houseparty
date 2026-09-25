@@ -113,7 +113,7 @@ struct APIClient: Sendable {
 
     /// Errors come back as {"detail": "some sentence"}, or for bad input as
     /// {"detail": [{"msg": "..."}, ...]}. Either way, find the words.
-    private static func message(from data: Data) -> String {
+    static func message(from data: Data) -> String {
         struct Sentence: Decodable { let detail: String }
         struct Problems: Decodable {
             struct Problem: Decodable { let msg: String }
@@ -152,6 +152,35 @@ extension APIClient {
 
     func setInterests(_ interests: [String]) async throws -> Me {
         try await send("PUT", "me/interests", body: InterestsUpdate(interests: interests))
+    }
+
+    /// Photos go up as a multipart form, the standard way browsers upload
+    /// files, rather than JSON.
+    func uploadPhoto(jpeg: Data) async throws -> PhotoResult {
+        let boundary = "HouseParty-\(UUID().uuidString)"
+        var body = Data()
+        body.append(Data("--\(boundary)\r\n".utf8))
+        body.append(Data("Content-Disposition: form-data; name=\"photo\"; filename=\"photo.jpg\"\r\n".utf8))
+        body.append(Data("Content-Type: image/jpeg\r\n\r\n".utf8))
+        body.append(jpeg)
+        body.append(Data("\r\n--\(boundary)--\r\n".utf8))
+
+        var request = URLRequest(url: baseURL.appending(path: "me/photo"))
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        request.httpBody = body
+
+        let (data, response): (Data, URLResponse)
+        do { (data, response) = try await URLSession.shared.data(for: request) } catch {
+            throw APIError.offline
+        }
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard status == 200 else {
+            if status == 401 { throw APIError.signedOut }
+            throw APIError.rejected(status: status, message: Self.message(from: data))
+        }
+        return try Self.decoder.decode(PhotoResult.self, from: data)
     }
 
     func deleteAccount() async throws {

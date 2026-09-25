@@ -59,7 +59,7 @@ struct PartyDetailView: View {
                 hint: mode == .invite
                     ? "You can invite anyone you've matched with."
                     : "The host can only invite their matches, so we'll introduce you: "
-                      + "they'll show up at the top of each other's Discover.",
+                      + "they'll show up at the top of each other's Match tab.",
                 excluded: Set(guests.map(\.user.id) + (party.map { [$0.host.id] } ?? []))
             ) { person in
                 if mode == .invite {
@@ -338,7 +338,7 @@ struct MatchPicker: View {
                     if loaded && matches.isEmpty {
                         EmptyState(
                             title: "No matches yet",
-                            message: "Like people in Discover. When they like you back, they show up here.",
+                            message: "Like people in Match. When they like you back, they show up here.",
                             systemImage: "face.smiling.inverse"
                         )
                     }

@@ -19,8 +19,10 @@ from datetime import UTC, datetime
 
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
+from markupsafe import Markup
 from sqladmin import Admin, ModelView, action
 from sqladmin.authentication import AuthenticationBackend
+from sqlalchemy import func, select
 
 from app.config import settings
 from app.db import SessionFactory, engine
@@ -35,6 +37,7 @@ from app.models import (
     Report,
     User,
 )
+from app.services import photos
 
 
 class AdminAuth(AuthenticationBackend):
@@ -118,6 +121,16 @@ class UserAdmin(ModelView, model=User):
     column_details_exclude_list = [User.latitude, User.longitude]
     form_columns = [User.invite_cap, User.is_banned]
 
+    @action(name="remove_photo", label="Remove photo")
+    async def remove_photo(self, request: Request) -> RedirectResponse:
+        async with SessionFactory() as session:
+            for pk in selected_ids(request):
+                user = await session.get(User, pk)
+                if user:
+                    user.photo_url = None
+            await session.commit()
+        return back_to_list(request, self)
+
     @action(name="ban", label="Ban", confirmation_message="Ban the selected people?")
     async def ban(self, request: Request) -> RedirectResponse:
         await self._set_banned(request, True)
@@ -135,6 +148,55 @@ class UserAdmin(ModelView, model=User):
                 if user:
                     user.is_banned = banned
             await session.commit()
+
+
+class PhotoReviewAdmin(ModelView, model=User):
+    """Photos the automatic check held back. Same table as UserAdmin, just
+    filtered to people with a photo waiting."""
+
+    name = "Photo to review"
+    name_plural = "Photos to review"
+    icon = "fa-solid fa-image"
+    can_create = False
+    can_edit = False
+    can_delete = False
+    column_list = [User.first_name, User.pending_photo_reason, User.pending_photo_url]
+    column_formatters = {
+        User.pending_photo_url: lambda m, a: (
+            Markup(f'<img src="{m.pending_photo_url}" style="max-height:160px">')
+            if m.pending_photo_url
+            else ""
+        )
+    }
+
+    def list_query(self, request: Request):  # type: ignore[override]
+        return select(User).where(User.pending_photo_url.is_not(None))
+
+    def count_query(self, request: Request):  # type: ignore[override]
+        return select(func.count()).select_from(User).where(User.pending_photo_url.is_not(None))
+
+    @action(name="approve_photo", label="Photo is fine")
+    async def approve(self, request: Request) -> RedirectResponse:
+        await self._decide(request, photos.approve_pending)
+        return back_to_list(request, self)
+
+    @action(name="reject_photo", label="Reject photo")
+    async def reject(self, request: Request) -> RedirectResponse:
+        await self._decide(request, photos.reject_pending)
+        return back_to_list(request, self)
+
+    async def _decide(self, request: Request, decide) -> None:
+        async with SessionFactory() as session:
+            for pk in selected_ids(request):
+                user = await session.get(User, pk)
+                if user:
+                    decide(user)
+            await session.commit()
+
+
+# SQLAdmin names each page after its table, which would clash with UserAdmin.
+# It overwrites anything set inside the class, so set it afterwards.
+PhotoReviewAdmin.identity = "photo-review"
 
 
 class InviteCapRequestAdmin(ModelView, model=InviteCapRequest):
@@ -220,5 +282,13 @@ def mount_admin(app: FastAPI) -> None:
         title="House Party admin",
         authentication_backend=AdminAuth(secret_key=settings.admin_session_secret),
     )
-    for view in (ReportAdmin, UserAdmin, InviteCapRequestAdmin, InterestAdmin, FeedbackAdmin):
+    views = (
+        ReportAdmin,
+        PhotoReviewAdmin,
+        UserAdmin,
+        InviteCapRequestAdmin,
+        InterestAdmin,
+        FeedbackAdmin,
+    )
+    for view in views:
         admin.add_view(view)

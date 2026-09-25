@@ -83,6 +83,11 @@ comes up, but it's the current design:
 - The host drops a pin for every party; it's required. Guests see only a
   rounded distance from it until they accept.
 
+**Photos** (answered session 2) — live immediately, like most dating apps,
+but screened automatically (Amazon Rekognition) first; flagged ones wait for
+an admin. Alcohol/swimwear are deliberately not blocked. Stored on
+Cloudflare R2.
+
 **Feedback/ratings**
 - Post-party "would you party with them again?" is **private only**. No public
   scores, no badges. Used internally to flag bad actors.
@@ -191,16 +196,20 @@ Admin page: `http://localhost:8000/admin`, user `admin`, password from
    (list, create with map pin, invite matches, accept/decline, suggest), Me.
    Chats too: live messages over WebSocket, reunion join, anonymous
    vote-out with take-back, report/block by long-press, "host again".
-   **Still to build:** photo upload, "would you party again?" after a party,
-   push notifications, editing a party.
+   Photos: pick from the library → on-phone face check (best-effort; it
+   can't run in the simulator) → server re-saves as a clean JPEG (strips
+   GPS) → automatic moderation → live, or held in admin "Photos to review".
+   **Still to build:** "would you party again?" after a party, push
+   notifications, editing a party.
    Look: always dark; serif (New York) everywhere; pink→blue accents; the
    "like" is an acid-house smiley. All of it lives in `ios/HouseParty/Design/`
    (font, corner sizes, colors) — screens don't pick their own.
 2. **Push notifications** — nothing sends any yet (needs APNs + device-token
    table). Suggested set: new match, invite received, invite accepted, new
    message (mutable per chat), party reminder.
-3. **Photo upload** — only a `photo_url` field. Recommended: S3/R2 presigned
-   URLs. Photo moderation undecided.
+3. **Photos in production** — set `STORAGE_BACKEND=r2` and
+   `MODERATION_BACKEND=rekognition` plus their keys in `.env`. Dev needs
+   neither (local files, everything passes).
 4. `Interest.BLOCKED_WORDS` is still a two-item placeholder.
 5. `ConnectionManager` and the party-completion job assume one server
    process. Fine until there's a second one (then Redis pub/sub + a real
@@ -218,7 +227,6 @@ Admin page: `http://localhost:8000/admin`, user `admin`, password from
 
 ## Open questions never answered
 
-- Photo storage and moderation of uploaded photos
 
 ## Machine notes
 

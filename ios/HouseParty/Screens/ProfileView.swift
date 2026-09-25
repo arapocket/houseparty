@@ -12,6 +12,7 @@ struct ProfileView: View {
     @State private var interestsChanged = false
     @State private var confirmingDelete = false
     @State private var error: String?
+    @State private var photoNote: String?
 
     var body: some View {
         NavigationStack {
@@ -19,7 +20,9 @@ struct ProfileView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     if let me = model.me {
                         HStack(spacing: 16) {
-                            Avatar(url: me.photoUrl, name: me.firstName, size: 72)
+                            PhotoPickerAvatar(size: 72) { message, isError in
+                                if isError { error = message } else { photoNote = message; error = nil }
+                            }
                             VStack(alignment: .leading, spacing: 4) {
                                 Text([me.firstName, me.age.map(String.init)].compactMap { $0 }.joined(separator: ", "))
                                     .font(.system(size: 30, weight: .heavy, design: Theme.fontDesign))
@@ -30,6 +33,15 @@ struct ProfileView: View {
                             }
                         }
                         .padding(.top, 12)
+
+                        if me.photoInReview || photoNote != nil {
+                            Label(
+                                photoNote ?? "Your new photo is being checked. Your old one stays up until then.",
+                                systemImage: "hourglass"
+                            )
+                            .font(.footnote)
+                            .foregroundStyle(Theme.yellow)
+                        }
                     }
 
                     Toggle(isOn: $downToParty) {
@@ -50,7 +62,7 @@ struct ProfileView: View {
 
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            SectionLabel("Discover radius")
+                            SectionLabel("Match radius")
                             Text("\(Int(radius)) km")
                                 .font(.headline)
                                 .foregroundStyle(Theme.hot)

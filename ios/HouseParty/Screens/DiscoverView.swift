@@ -16,7 +16,7 @@ struct DiscoverView: View {
             ScrollView {
                 LazyVStack(spacing: 16) {
                     HStack(alignment: .firstTextBaseline) {
-                        ScreenTitle(text: "Discover")
+                        ScreenTitle(text: "Match")
                         NavigationLink {
                             PassedView()
                         } label: {
@@ -228,7 +228,7 @@ struct PassedView: View {
                 if loaded && people.isEmpty {
                     EmptyState(
                         title: "Nobody passed",
-                        message: "People you pass on in Discover show up here.",
+                        message: "People you pass on in Match show up here.",
                         systemImage: "arrow.uturn.backward"
                     )
                 }

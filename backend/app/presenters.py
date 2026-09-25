@@ -72,6 +72,7 @@ def me(user: User) -> MeOut:
         search_radius_km=user.search_radius_km,
         invite_cap=user.invite_cap,
         needs_onboarding=not user.is_onboarded,
+        photo_in_review=user.pending_photo_url is not None,
     )
 
 

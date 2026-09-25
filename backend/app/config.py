@@ -32,6 +32,24 @@ class Settings(BaseSettings):
     # Empty means the admin page refuses every login. Set it in .env.
     admin_password: str = ""
 
+    # Where the app reaches this server. Used to build links to uploaded
+    # photos when they're stored locally.
+    public_base_url: str = "http://localhost:8000"
+
+    # Photos. "local" keeps them in backend/uploads (dev); "r2" uses
+    # Cloudflare R2. Moderation "off" lets everything through (dev);
+    # "rekognition" uses Amazon's image moderation.
+    storage_backend: str = "local"
+    r2_account_id: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_bucket: str = ""
+    r2_public_base_url: str = ""
+    moderation_backend: str = "off"
+    aws_region: str = "us-east-1"
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+
     # Browser origins allowed to call the API. The iOS app does not need this;
     # it only matters if a web page ever talks to the API.
     cors_origins: list[str] = []

@@ -18,10 +18,17 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 6) {
                     ScreenTitle(text: "Who are you?")
-                    Text("This is what people see when you show up in Discover.")
+                    Text("This is what people see when you show up in Match.")
                         .foregroundStyle(Theme.textDim)
                 }
                 .padding(.top, 24)
+
+                HStack(spacing: 16) {
+                    PhotoPickerAvatar(size: 76) { message, _ in error = message }
+                    Text("Add a photo of you. Optional for now, but people like seeing who they'll meet.")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.textDim)
+                }
 
                 VStack(alignment: .leading, spacing: 12) {
                     SectionLabel("About you")

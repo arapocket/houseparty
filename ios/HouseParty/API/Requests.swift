@@ -18,7 +18,6 @@ struct ProfileUpdate: Encodable {
     var birthdate: String?
     var bio: String?
     var neighborhood: String?
-    var photoUrl: String?
     var latitude: Double?
     var longitude: Double?
     var searchRadiusKm: Int?
