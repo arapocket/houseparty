@@ -1,0 +1,40 @@
+"""The Discover list, and liking or passing on someone in it."""
+
+import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, Query
+
+from app import presenters
+from app.deps import OnboardedUser, Session
+from app.schemas import DecisionIn, DecisionOut, DiscoverCardOut
+from app.services import matching
+
+router = APIRouter(prefix="/discover", tags=["discover"])
+
+
+@router.get("")
+async def discover(
+    user: OnboardedUser,
+    session: Session,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> list[DiscoverCardOut]:
+    candidates = await matching.discover(session, user, limit=limit, offset=offset)
+    return [
+        DiscoverCardOut(
+            user=presenters.public_profile(c.user),
+            shared_interests=[i.display for i in c.shared_interests],
+            distance_km=c.distance_km,
+            suggested_for_party_id=c.suggested_for_party_id,
+        )
+        for c in candidates
+    ]
+
+
+@router.post("/{user_id}/decision")
+async def decide(
+    user_id: uuid.UUID, data: DecisionIn, user: OnboardedUser, session: Session
+) -> DecisionOut:
+    match = await matching.record_decision(session, user, user_id, data.decision)
+    return DecisionOut(matched=match is not None, match_id=match.id if match else None)
