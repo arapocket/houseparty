@@ -100,7 +100,7 @@ struct Avatar: View {
     var size: CGFloat = 52
 
     var body: some View {
-        AsyncImage(url: url.flatMap(URL.init(string:))) { image in
+        AsyncImage(url: APIClient.mediaURL(url)) { image in
             image.resizable().scaledToFill()
         } placeholder: {
             let initial = name?.first.map(String.init) ?? "?"

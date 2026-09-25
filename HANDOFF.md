@@ -85,8 +85,8 @@ comes up, but it's the current design:
 
 **Photos** (answered session 2) — live immediately, like most dating apps,
 but screened automatically (Amazon Rekognition) first; flagged ones wait for
-an admin. Alcohol/swimwear are deliberately not blocked. Stored on
-Cloudflare R2.
+an admin. Alcohol/swimwear are deliberately not blocked. Stored in S3,
+served through CloudFront (switched from R2 so everything is on AWS).
 
 **Feedback/ratings**
 - Post-party "would you party with them again?" is **private only**. No public
@@ -214,9 +214,12 @@ Admin page: `http://localhost:8000/admin`, user `admin`, password from
    (font, corner sizes, colors) — screens don't pick their own.
 2. **Push notifications** — built (match, invite, accepted, message with
    per-chat mute, 2-hour reminder); waiting on the Apple Developer account.
-3. **Photos in production** — set `STORAGE_BACKEND=r2` and
-   `MODERATION_BACKEND=rekognition` plus their keys in `.env`. Dev needs
-   neither (local files, everything passes).
+3. **AWS** — all of production is described in `infra/stack.py` (CDK, in
+   Python): Fargate server behind a load balancer, RDS Postgres, S3 photos,
+   CloudFront as the one public HTTPS address, Secrets Manager. Written and
+   checked with `cdk synth`, **not deployed yet**: the user has an AWS account
+   but hadn't set up the CLI. Steps in `DEPLOY.md`. No domain yet (using the
+   cloudfront.net address); SMS stays on Twilio.
 4. `Interest.BLOCKED_WORDS` is still a two-item placeholder.
 5. `ConnectionManager` and the party-completion job assume one server
    process. Fine until there's a second one (then Redis pub/sub + a real

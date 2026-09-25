@@ -7,6 +7,7 @@ than discovering it when the first user hits the endpoint that needs it.
 from __future__ import annotations
 
 from functools import lru_cache
+from urllib.parse import quote_plus
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -17,6 +18,13 @@ class Settings(BaseSettings):
 
     env: str = "dev"
     database_url: str = "postgresql+asyncpg://houseparty:houseparty@localhost:5432/houseparty"
+    # On AWS the database login arrives as separate pieces (from Secrets
+    # Manager) instead of one URL. If DB_HOST is set, these win.
+    db_host: str = ""
+    db_port: int = 5432
+    db_name: str = "houseparty"
+    db_username: str = ""
+    db_password: str = ""
 
     # Signs every login token. Anyone who knows it can sign in as anybody.
     jwt_secret: str = "dev-only-secret-do-not-use-in-production"
@@ -26,29 +34,23 @@ class Settings(BaseSettings):
     twilio_account_sid: str = ""
     twilio_auth_token: str = ""
     twilio_verify_service_sid: str = ""
+    # Outside dev, sign-in codes are only ever texted. For a test deployment
+    # before Twilio is set up, this lets them go to the server log instead.
+    allow_logged_codes: bool = False
 
     admin_session_secret: str = "dev-only-admin-secret-do-not-use-in-production"
     admin_username: str = "admin"
     # Empty means the admin page refuses every login. Set it in .env.
     admin_password: str = ""
 
-    # Where the app reaches this server. Used to build links to uploaded
-    # photos when they're stored locally.
-    public_base_url: str = "http://localhost:8000"
-
-    # Photos. "local" keeps them in backend/uploads (dev); "r2" uses
-    # Cloudflare R2. Moderation "off" lets everything through (dev);
-    # "rekognition" uses Amazon's image moderation.
+    # Photos. "local" keeps them in backend/uploads (dev); "s3" puts them in
+    # an S3 bucket that CloudFront serves at /photos/. Moderation "off" lets
+    # everything through (dev); "rekognition" uses Amazon's image moderation.
+    # On AWS no keys are needed: the server's own AWS role grants access.
     storage_backend: str = "local"
-    r2_account_id: str = ""
-    r2_access_key_id: str = ""
-    r2_secret_access_key: str = ""
-    r2_bucket: str = ""
-    r2_public_base_url: str = ""
+    s3_bucket: str = ""
     moderation_backend: str = "off"
     aws_region: str = "us-east-1"
-    aws_access_key_id: str = ""
-    aws_secret_access_key: str = ""
 
     # Push notifications (Apple). Empty = dev: notifications are logged, not
     # sent. The private key is the contents of the .p8 file from Apple.
@@ -85,6 +87,17 @@ class Settings(BaseSettings):
     @property
     def is_dev(self) -> bool:
         return self.env in ("dev", "test")
+
+    @model_validator(mode="after")
+    def database_from_parts(self) -> Settings:
+        if self.db_host:
+            # quote_plus: generated passwords can contain characters like @ or /
+            # that would otherwise break the URL.
+            self.database_url = (
+                f"postgresql+asyncpg://{quote_plus(self.db_username)}:"
+                f"{quote_plus(self.db_password)}@{self.db_host}:{self.db_port}/{self.db_name}"
+            )
+        return self
 
     @model_validator(mode="after")
     def real_secrets_outside_dev(self) -> Settings:

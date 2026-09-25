@@ -28,8 +28,19 @@ enum APIError: LocalizedError {
 }
 
 struct APIClient: Sendable {
-    /// The simulator can reach the Mac's localhost directly.
-    static let defaultBaseURL = URL(string: "http://localhost:8000")!
+    /// Where the server is. Comes from the API_BASE_URL build setting: your
+    /// Mac (localhost) for Debug builds, the AWS address for Release.
+    static let defaultBaseURL: URL = {
+        let fromSettings = Bundle.main.object(forInfoDictionaryKey: "APIBaseURL") as? String
+        return URL(string: fromSettings ?? "") ?? URL(string: "http://localhost:8000")!
+    }()
+
+    /// Photos come back as paths like "/photos/abc.jpg"; this puts the
+    /// server's address in front. Full URLs pass through unchanged.
+    static func mediaURL(_ path: String?) -> URL? {
+        guard let path, !path.isEmpty else { return nil }
+        return URL(string: path, relativeTo: defaultBaseURL)?.absoluteURL
+    }
 
     var baseURL: URL = APIClient.defaultBaseURL
     var token: String?

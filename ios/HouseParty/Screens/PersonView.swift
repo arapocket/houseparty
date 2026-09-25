@@ -95,7 +95,7 @@ struct PersonView: View {
 
     private func header(_ person: PublicProfile) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            AsyncImage(url: person.photoUrl.flatMap(URL.init(string:))) { image in
+            AsyncImage(url: APIClient.mediaURL(person.photoUrl)) { image in
                 image.resizable().scaledToFill()
             } placeholder: {
                 Text(person.firstName?.first.map(String.init) ?? "?")

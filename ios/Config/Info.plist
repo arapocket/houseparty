@@ -5,6 +5,9 @@
 	<!-- Lets the app talk to the dev server over plain http://localhost.
 	     Only affects local addresses; everything else still needs HTTPS. -->
 	<!-- houseparty:// links open a chat, party or person in the app. -->
+	<!-- The server address, from the API_BASE_URL build setting. -->
+	<key>APIBaseURL</key>
+	<string>$(API_BASE_URL)</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

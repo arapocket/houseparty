@@ -49,7 +49,7 @@ async def test_upload_goes_live(client: httpx.AsyncClient, uploads_in_tmp) -> No
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["live"] is True
-    assert body["me"]["photo_url"].startswith("http://localhost:8000/uploads/")
+    assert body["me"]["photo_url"].startswith("/uploads/")
     assert body["me"]["photo_in_review"] is False
     assert len(list(uploads_in_tmp.iterdir())) == 1
 

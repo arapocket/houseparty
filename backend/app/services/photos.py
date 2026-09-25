@@ -79,12 +79,7 @@ def moderation_labels(jpeg: bytes) -> set[str]:
 
     import boto3  # only needed when moderation is switched on
 
-    client = boto3.client(
-        "rekognition",
-        region_name=settings.aws_region,
-        aws_access_key_id=settings.aws_access_key_id or None,
-        aws_secret_access_key=settings.aws_secret_access_key or None,
-    )
+    client = boto3.client("rekognition", region_name=settings.aws_region)
     result = client.detect_moderation_labels(Image={"Bytes": jpeg}, MinConfidence=80)
     found: set[str] = set()
     for label in result.get("ModerationLabels", []):
@@ -95,28 +90,29 @@ def moderation_labels(jpeg: bytes) -> set[str]:
 
 
 def store(jpeg: bytes) -> str:
-    """Step 4. Saves the file and returns the URL the app loads it from."""
+    """Step 4. Saves the file and returns the path the app loads it from.
+
+    Paths, not full URLs: the app puts its own server address in front, so
+    the same database works whatever the server's address is.
+    """
     name = f"{uuid.uuid4().hex}.jpg"
 
     if settings.storage_backend == "local":
         UPLOAD_DIR.mkdir(exist_ok=True)
         (UPLOAD_DIR / name).write_bytes(jpeg)
-        return f"{settings.public_base_url}/uploads/{name}"
+        return f"/uploads/{name}"
 
     import boto3
 
-    # Cloudflare R2 speaks the same language as Amazon S3.
-    client = boto3.client(
-        "s3",
-        endpoint_url=f"https://{settings.r2_account_id}.r2.cloudflarestorage.com",
-        aws_access_key_id=settings.r2_access_key_id,
-        aws_secret_access_key=settings.r2_secret_access_key,
-        region_name="auto",
+    # On AWS, boto3 finds the server's permissions by itself; no keys here.
+    boto3.client("s3", region_name=settings.aws_region).put_object(
+        Bucket=settings.s3_bucket,
+        Key=f"photos/{name}",
+        Body=jpeg,
+        ContentType="image/jpeg",
+        CacheControl="public, max-age=31536000, immutable",  # names never get reused
     )
-    client.put_object(
-        Bucket=settings.r2_bucket, Key=f"photos/{name}", Body=jpeg, ContentType="image/jpeg"
-    )
-    return f"{settings.r2_public_base_url}/photos/{name}"
+    return f"/photos/{name}"
 
 
 async def upload_profile_photo(session: AsyncSession, user: User, raw: bytes) -> bool:

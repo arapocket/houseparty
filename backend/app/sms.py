@@ -11,6 +11,7 @@ import logging
 import httpx
 
 from app.config import settings
+from app.errors import RuleError
 
 log = logging.getLogger("houseparty.sms")
 
@@ -25,6 +26,9 @@ def twilio_configured() -> bool:
 
 async def send_code(phone: str, code: str) -> None:
     if not twilio_configured():
+        if not (settings.is_dev or settings.allow_logged_codes):
+            # Never quietly log real people's codes in production.
+            raise RuleError("Sign-in texts aren't working right now. Try again soon.", 503)
         log.warning("[dev] verification code for %s is %s", phone, code)
         return
 
