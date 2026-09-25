@@ -61,11 +61,15 @@ struct MainTabs: View {
                     Image(uiImage: EmojiIcon.image("🤝"))
                 }
             }
-            Tab("Parties", image: "SoloCup") {
+            Tab {
                 PartiesView()
+            } label: {
+                Label { Text("Parties") } icon: { Image(uiImage: TabIcon.soloCup) }
             }
-            Tab("Chats", systemImage: "bubble.left.and.bubble.right.fill") {
+            Tab {
                 ChatsView()
+            } label: {
+                Label { Text("Chats") } icon: { Image(uiImage: TabIcon.chats) }
             }
             Tab("Me", image: "AcidSmiley") {
                 ProfileView()

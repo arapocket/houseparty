@@ -20,3 +20,13 @@ enum EmojiIcon {
         return drawn.withRenderingMode(.alwaysOriginal)
     }
 }
+
+/// Tab icons that keep their own color instead of taking the tab bar's.
+enum TabIcon {
+    /// A red party cup.
+    static let soloCup = UIImage(named: "SoloCup")!
+        .withTintColor(UIColor(red: 0.91, green: 0.19, blue: 0.23, alpha: 1), renderingMode: .alwaysOriginal)
+
+    static let chats = UIImage(systemName: "bubble.left.and.bubble.right.fill")!
+        .withTintColor(UIColor(Theme.blue), renderingMode: .alwaysOriginal)
+}

@@ -15,6 +15,7 @@ struct ChatMembersView: View {
     @State private var members: [ChatMember] = []
     @State private var confirmingLeave = false
     @State private var votingAgainst: ChatMember?
+    @State private var viewing: PersonRef?
     @State private var error: String?
 
     private var isReunion: Bool { chat.kind == "reunion" }
@@ -40,6 +41,10 @@ struct ChatMembersView: View {
                             canVote: isReunion && member.votesNeeded > 0
                         ) {
                             if member.iVoted { takeBack(member) } else { votingAgainst = member }
+                        }
+                        .contentShape(.rect)
+                        .onTapGesture {
+                            if member.user.id != myId { viewing = PersonRef(id: member.user.id) }
                         }
                     }
 
@@ -73,6 +78,7 @@ struct ChatMembersView: View {
                     + "\(member.user.firstName ?? "they")'s out of the chat for good.")
             }
             .task { await load() }
+            .personSheet($viewing)
         }
     }
 

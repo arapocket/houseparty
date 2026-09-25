@@ -10,6 +10,7 @@ struct DiscoverView: View {
     @State private var loaded = false
     @State private var error: String?
     @State private var justMatched: PublicProfile?
+    @State private var viewing: PersonRef?
 
     var body: some View {
         NavigationStack {
@@ -33,6 +34,8 @@ struct DiscoverView: View {
                             onLike: { decide(card, like: true) },
                             onPass: { decide(card, like: false) }
                         )
+                        .contentShape(.rect)
+                        .onTapGesture { viewing = PersonRef(id: card.user.id) }
                         .transition(.asymmetric(
                             insertion: .opacity,
                             removal: .scale(scale: 0.9).combined(with: .opacity)
@@ -62,6 +65,12 @@ struct DiscoverView: View {
                 }
             }
             .animation(.smooth, value: justMatched?.id)
+            .personSheet($viewing, showDecision: true) { _ in
+                // They're decided on now, so they leave the list.
+                if let id = viewing?.id {
+                    withAnimation { cards.removeAll { $0.user.id == id } }
+                }
+            }
         }
     }
 
@@ -204,6 +213,7 @@ struct PassedView: View {
     @State private var people: [PassedPerson] = []
     @State private var loaded = false
     @State private var error: String?
+    @State private var viewing: PersonRef?
 
     var body: some View {
         ScrollView {
@@ -214,7 +224,13 @@ struct PassedView: View {
                         Avatar(url: person.user.photoUrl, name: person.user.firstName, size: 40)
                         VStack(alignment: .leading, spacing: 6) {
                             Text(person.user.firstName ?? "Someone").font(.headline)
-                            ChipCloud(interests: person.sharedInterests)
+                            Text([person.user.age.map(String.init), person.user.neighborhood]
+                                .compactMap { $0 }.joined(separator: " · "))
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.textDim)
+                            if !person.sharedInterests.isEmpty {
+                                ChipCloud(interests: person.sharedInterests)
+                            }
                         }
                         Spacer()
                         Button { like(person) } label: {
@@ -224,6 +240,9 @@ struct PassedView: View {
                         .accessibilityLabel("Like \(person.user.firstName ?? "")")
                     }
                     .card(padding: 14)
+                    // Tapping anywhere but the smiley opens their profile.
+                    .contentShape(.rect)
+                    .onTapGesture { viewing = PersonRef(id: person.user.id) }
                 }
                 if loaded && people.isEmpty {
                     EmptyState(
@@ -238,6 +257,9 @@ struct PassedView: View {
         .partyScreen()
         .navigationTitle("Passed")
         .task { await load() }
+        .personSheet($viewing, showDecision: true) { _ in
+            Task { await load() }
+        }
     }
 
     private func load() async {

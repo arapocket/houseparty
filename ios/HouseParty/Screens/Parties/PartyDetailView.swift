@@ -20,6 +20,7 @@ struct PartyDetailView: View {
     @State private var picking: PickerMode?
     @State private var confirmingCancel = false
     @State private var askingBigger = false
+    @State private var viewing: PersonRef?
     @State private var error: String?
 
     enum PickerMode: Identifiable {
@@ -52,6 +53,7 @@ struct PartyDetailView: View {
         .partyScreen()
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
+        .personSheet($viewing)
         .sheet(item: $picking) { mode in
             MatchPicker(
                 title: mode == .invite ? "Invite" : "Suggest someone",
@@ -176,6 +178,7 @@ struct PartyDetailView: View {
             ForEach(guests) { guest in
                 HStack(spacing: 12) {
                     Avatar(url: guest.user.photoUrl, name: guest.user.firstName, size: 36)
+                        .onTapGesture { viewing = PersonRef(id: guest.user.id) }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(guest.user.firstName ?? "Someone").font(.headline)
                         Text(guestStatus(guest.status))
@@ -206,6 +209,9 @@ struct PartyDetailView: View {
                     VStack(spacing: 4) {
                         Avatar(url: guest.photoUrl, name: guest.firstName, size: 44)
                         Text(guest.firstName ?? "").font(.caption.weight(.semibold))
+                    }
+                    .onTapGesture {
+                        if guest.id != model.me?.id { viewing = PersonRef(id: guest.id) }
                     }
                 }
             }
