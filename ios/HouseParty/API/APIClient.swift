@@ -298,6 +298,21 @@ extension APIClient {
         let _: OK = try await send("DELETE", "chats/\(chatId)/kick-votes/\(userId)")
     }
 
+    func mute(_ chatId: UUID, _ muted: Bool) async throws -> Chat {
+        struct Body: Encodable { let muted: Bool }
+        return try await send("POST", "chats/\(chatId)/mute", body: Body(muted: muted))
+    }
+
+    // Push notifications
+    func registerDevice(token: String) async throws {
+        struct Body: Encodable { let token: String }
+        let _: OK = try await send("POST", "me/devices", body: Body(token: token))
+    }
+
+    func forgetDevice(token: String) async throws {
+        let _: OK = try await send("DELETE", "me/devices/\(token)")
+    }
+
     // Safety
     func report(_ report: NewReport) async throws {
         let _: OK = try await send("POST", "reports", body: report)

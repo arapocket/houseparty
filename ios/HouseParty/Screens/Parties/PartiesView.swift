@@ -7,6 +7,7 @@ struct PartiesView: View {
     @Environment(AppModel.self) private var model
 
     @State private var parties: [Party] = []
+    @State private var path: [UUID] = []
     /// party id -> my invite id, so a party can be answered from its page.
     @State private var inviteIds: [UUID: UUID] = [:]
     @State private var loaded = false
@@ -26,7 +27,7 @@ struct PartiesView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     HStack(alignment: .firstTextBaseline) {
@@ -65,6 +66,12 @@ struct PartiesView: View {
             }
             .refreshable { await load() }
             .task { await load() }
+            .task(id: model.route) {
+                guard case .party(let id) = model.route else { return }
+                await load()
+                path = [id]
+                model.route = nil  // last, or it restarts this task mid-load
+            }
             .sheet(isPresented: $creating) {
                 NewPartyView { _ in Task { await load() } }
             }

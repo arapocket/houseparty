@@ -305,6 +305,7 @@ class ChatOut(BaseModel):
     last_message: str | None = None
     last_message_at: datetime | None = None
     last_sender_name: str | None = None
+    muted: bool = False
 
 
 class MessageIn(BaseModel):
@@ -375,6 +376,16 @@ class MyFeedbackOut(BaseModel):
     can show what you already said. Never anyone else's."""
 
     answers: dict[uuid.UUID, bool]
+
+
+class DeviceIn(BaseModel):
+    """The push token iOS hands the app for this phone."""
+
+    token: str = Field(min_length=8, max_length=200)
+
+
+class MuteIn(BaseModel):
+    muted: bool
 
 
 class SimpleOk(BaseModel):

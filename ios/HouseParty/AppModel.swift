@@ -20,6 +20,12 @@ final class AppModel {
     private(set) var phase: Phase = .loading
     private(set) var me: Me?
 
+    /// Set when a notification is tapped; the tabs pick it up and navigate.
+    var route: Route?
+
+    /// This phone's push token, once iOS hands one over.
+    private var pushToken: String?
+
     /// A client carrying the current token. Screens use this for their calls.
     private(set) var api = APIClient(token: TokenStore.load())
 
@@ -59,7 +65,20 @@ final class AppModel {
         await refreshMe()
     }
 
+    /// iOS gave us a push token: tell the server where to reach this phone.
+    func registerPush(token: String) {
+        pushToken = token
+        guard phase == .ready || phase == .onboarding else { return }
+        Task { try? await api.registerDevice(token: token) }
+    }
+
     func signOut() {
+        // Stop this phone getting the old account's notifications. Uses the
+        // old token, so it has to start before we forget it.
+        if let pushToken {
+            let oldAPI = api
+            Task { try? await oldAPI.forgetDevice(token: pushToken) }
+        }
         TokenStore.clear()
         api = APIClient(token: nil)
         me = nil

@@ -168,7 +168,11 @@ async def messages_out(session: AsyncSession, messages: list[Message]) -> list[M
 
 
 async def chat_out(
-    session: AsyncSession, chat: Chat, joined: bool, hidden_senders: set[uuid.UUID] | None = None
+    session: AsyncSession,
+    chat: Chat,
+    joined: bool,
+    hidden_senders: set[uuid.UUID] | None = None,
+    viewer_id: uuid.UUID | None = None,
 ) -> ChatOut:
     from app.services.chat import last_message
 
@@ -195,4 +199,16 @@ async def chat_out(
         last_message=latest.body if latest else None,
         last_message_at=latest.created_at if latest else None,
         last_sender_name=sender.first_name if sender else None,
+        muted=await _is_muted(session, chat.id, viewer_id) if joined and viewer_id else False,
     )
+
+
+async def _is_muted(session: AsyncSession, chat_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    muted = await session.scalar(
+        select(ChatMember.muted).where(
+            ChatMember.chat_id == chat_id,
+            ChatMember.user_id == user_id,
+            ChatMember.left_at.is_(None),
+        )
+    )
+    return bool(muted)

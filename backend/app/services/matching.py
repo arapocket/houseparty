@@ -34,6 +34,7 @@ from app.models import (
     User,
     UserInterest,
 )
+from app.services import push
 from app.services.geo import display_distance_km, distance_expression
 
 
@@ -228,6 +229,15 @@ async def record_decision(
 
     match = Match(user_low_id=low, user_high_id=high)
     session.add(match)
+    for person, other in ((me, target), (target, me)):
+        push.queue(
+            session,
+            [person.id],
+            "It's a match!",
+            f"You and {other.first_name or 'someone'} liked each other.",
+            open="person",
+            id=str(other.id),
+        )
 
     # An introduction between these two is now fulfilled: the host can invite.
     my_parties = select(Party.id).where(Party.host_id == me.id)

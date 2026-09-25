@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -15,6 +15,7 @@ from app.models import (
     INVITE_PENDING,
     PARTY_ACTIVE,
     PARTY_CANCELLED,
+    DeviceToken,
     Invite,
     Party,
     User,
@@ -117,6 +118,9 @@ async def delete_account(session: AsyncSession, user: User) -> None:
         .where(Invite.invitee_id == user.id, Invite.status == INVITE_PENDING)
         .values(status=INVITE_DECLINED, responded_at=utcnow())
     )
+
+    # No more notifications to their phones.
+    await session.execute(delete(DeviceToken).where(DeviceToken.user_id == user.id))
 
     # The phone column is unique, so free the number up for a fresh signup.
     user.phone = f"deleted:{user.id}"

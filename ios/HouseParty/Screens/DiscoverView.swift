@@ -65,6 +65,11 @@ struct DiscoverView: View {
                 }
             }
             .animation(.smooth, value: justMatched?.id)
+            .task(id: model.route) {
+                guard case .person(let id) = model.route else { return }
+                model.route = nil
+                viewing = PersonRef(id: id)
+            }
             .personSheet($viewing, showDecision: true) { _ in
                 // They're decided on now, so they leave the list.
                 if let id = viewing?.id {

@@ -3,10 +3,20 @@
 import uuid
 
 from fastapi import APIRouter, UploadFile, status
+from sqlalchemy import delete, select
 
 from app import presenters
 from app.deps import CurrentUser, OnboardedUser, Session
-from app.schemas import InterestsIn, MeOut, PhotoOut, ProfileIn, PublicProfileOut
+from app.models import DeviceToken
+from app.schemas import (
+    DeviceIn,
+    InterestsIn,
+    MeOut,
+    PhotoOut,
+    ProfileIn,
+    PublicProfileOut,
+    SimpleOk,
+)
 from app.services import photos, profiles
 
 router = APIRouter(tags=["profile"])
@@ -46,6 +56,27 @@ async def remove_photo(user: CurrentUser, session: Session) -> MeOut:
     user.pending_photo_reason = None
     await session.flush()
     return presenters.me(user)
+
+
+@router.post("/me/devices")
+async def register_device(data: DeviceIn, user: CurrentUser, session: Session) -> SimpleOk:
+    """Called by the app when iOS gives it a push token. If the same phone
+    was signed in as someone else before, it now belongs to this account."""
+    existing = await session.scalar(select(DeviceToken).where(DeviceToken.token == data.token))
+    if existing:
+        existing.user_id = user.id
+    else:
+        session.add(DeviceToken(user_id=user.id, token=data.token))
+    return SimpleOk()
+
+
+@router.delete("/me/devices/{token}")
+async def forget_device(token: str, user: CurrentUser, session: Session) -> SimpleOk:
+    """Called on sign-out, so a shared phone stops getting your notifications."""
+    await session.execute(
+        delete(DeviceToken).where(DeviceToken.token == token, DeviceToken.user_id == user.id)
+    )
+    return SimpleOk()
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)

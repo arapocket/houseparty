@@ -16,6 +16,7 @@ struct ChatMembersView: View {
     @State private var confirmingLeave = false
     @State private var votingAgainst: ChatMember?
     @State private var viewing: PersonRef?
+    @State private var muted = false
     @State private var error: String?
 
     private var isReunion: Bool { chat.kind == "reunion" }
@@ -32,6 +33,21 @@ struct ChatMembersView: View {
                             .font(.footnote)
                             .foregroundStyle(Theme.textDim)
                     }
+                    Toggle(isOn: $muted) {
+                        Label("Mute notifications", systemImage: muted ? "bell.slash.fill" : "bell.fill")
+                            .font(.headline)
+                    }
+                    .tint(Theme.blue)
+                    .card()
+                    .onChange(of: muted) { _, on in
+                        guard on != chat.muted else { return }
+                        Task {
+                            do { _ = try await model.api.mute(chat.id, on) } catch {
+                                self.error = error.localizedDescription
+                            }
+                        }
+                    }
+
                     ErrorText(text: error)
 
                     ForEach(members) { member in
@@ -77,7 +93,10 @@ struct ChatMembersView: View {
                 Text("Nobody will know it was you. If \(member.votesNeeded) people vote, "
                     + "\(member.user.firstName ?? "they")'s out of the chat for good.")
             }
-            .task { await load() }
+            .task {
+                muted = chat.muted
+                await load()
+            }
             .personSheet($viewing)
         }
     }

@@ -24,9 +24,11 @@ from app.schemas import (
     KickVoteOut,
     MessageIn,
     MessageOut,
+    MuteIn,
     SimpleOk,
 )
 from app.services import chat as chat_service
+from app.services import push
 from app.services.chat import manager
 from app.services.matching import blocked_user_ids
 
@@ -37,7 +39,10 @@ router = APIRouter(prefix="/chats", tags=["chat"])
 async def my_chats(user: OnboardedUser, session: Session) -> list[ChatOut]:
     rows = await chat_service.chats_for(session, user.id)
     hidden = await blocked_user_ids(session, user.id)
-    chats = [await presenters.chat_out(session, chat, joined, hidden) for chat, joined in rows]
+    chats = [
+        await presenters.chat_out(session, chat, joined, hidden, viewer_id=user.id)
+        for chat, joined in rows
+    ]
     # Most recently active first; chats nobody has spoken in yet go last.
     return sorted(
         chats, key=lambda c: c.last_message_at or datetime.min.replace(tzinfo=UTC), reverse=True
@@ -109,6 +114,14 @@ async def join(chat_id: uuid.UUID, user: OnboardedUser, session: Session) -> Cha
     return await presenters.chat_out(session, chat, joined=True)
 
 
+@router.post("/{chat_id}/mute")
+async def mute(chat_id: uuid.UUID, data: MuteIn, user: OnboardedUser, session: Session) -> ChatOut:
+    """Turn new-message notifications for this chat off (or back on)."""
+    chat = await chat_service.get_chat_for_member(session, chat_id, user.id)
+    await chat_service.set_muted(session, chat, user.id, data.muted)
+    return await presenters.chat_out(session, chat, joined=True, viewer_id=user.id)
+
+
 @router.post("/{chat_id}/leave")
 async def leave(chat_id: uuid.UUID, user: OnboardedUser, session: Session) -> SimpleOk:
     chat = await chat_service.get_chat_for_member(session, chat_id, user.id)
@@ -173,6 +186,7 @@ async def chat_socket(websocket: WebSocket, chat_id: uuid.UUID, token: str | Non
                     out = (await presenters.messages_out(session, [message]))[0]
                     blocked = await blocked_user_ids(session, user.id)
                     await session.commit()
+                    await push.send_queued(session)
                 except RuleError as error:
                     await websocket.send_json({"type": "error", "message": error.message})
                     continue

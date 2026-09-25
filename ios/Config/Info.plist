@@ -4,6 +4,18 @@
 <dict>
 	<!-- Lets the app talk to the dev server over plain http://localhost.
 	     Only affects local addresses; everything else still needs HTTPS. -->
+	<!-- houseparty:// links open a chat, party or person in the app. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>app.houseparty.HouseParty</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>houseparty</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

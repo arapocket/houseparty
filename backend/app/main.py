@@ -32,22 +32,27 @@ from app.routers import (
     profile,
     safety,
 )
-from app.services.parties import complete_finished_parties
+from app.services import push
+from app.services.parties import complete_finished_parties, send_reminders
 from app.services.photos import UPLOAD_DIR
 
 log = logging.getLogger("houseparty")
 
 
 async def finish_parties_forever() -> None:
-    """Every few minutes, mark parties that have ended as completed, which
-    opens their reunion chat. Runs inside the web server so there is nothing
-    else to deploy; move it to a real scheduler if we ever run several servers.
+    """Every few minutes: remind people about parties starting soon, and mark
+    parties that have ended as completed, which opens their reunion chat.
+
+    Runs inside the web server so there is nothing else to deploy; move it to
+    a real scheduler if we ever run several servers.
     """
     while True:
         try:
             async with SessionFactory() as session:
+                await send_reminders(session)
                 finished = await complete_finished_parties(session)
                 await session.commit()
+                await push.send_queued(session)
             if finished:
                 log.info("completed %d parties", len(finished))
         except Exception:

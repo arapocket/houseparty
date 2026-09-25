@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct HousePartyApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model = AppModel()
 
     init() {
@@ -22,7 +23,14 @@ struct HousePartyApp: App {
         WindowGroup {
             RootView()
                 .environment(model)
-                .task { await model.start() }
+                .task {
+                    AppDelegate.onToken = { model.registerPush(token: $0) }
+                    AppDelegate.onRoute = { model.route = $0 }
+                    await model.start()
+                }
+                .onOpenURL { url in
+                    if let route = Route(url: url) { model.route = route }
+                }
                 // Always dark: it's a nightlife app.
                 .preferredColorScheme(.dark)
                 .tint(Theme.pink)
@@ -50,9 +58,14 @@ struct RootView: View {
 }
 
 struct MainTabs: View {
+    @Environment(AppModel.self) private var model
+
+    enum Section: Hashable { case match, parties, chats, me }
+    @State private var section: Section = .match
+
     var body: some View {
-        TabView {
-            Tab {
+        TabView(selection: $section) {
+            Tab(value: Section.match) {
                 DiscoverView()
             } label: {
                 Label {
@@ -61,18 +74,30 @@ struct MainTabs: View {
                     Image(uiImage: EmojiIcon.image("🤝"))
                 }
             }
-            Tab {
+            Tab(value: Section.parties) {
                 PartiesView()
             } label: {
                 Label { Text("Parties") } icon: { Image(uiImage: TabIcon.soloCup) }
             }
-            Tab {
+            Tab(value: Section.chats) {
                 ChatsView()
             } label: {
                 Label { Text("Chats") } icon: { Image(uiImage: TabIcon.chats) }
             }
-            Tab("Me", image: "AcidSmiley") {
+            Tab("Me", image: "AcidSmiley", value: Section.me) {
                 ProfileView()
+            }
+        }
+        // Once you're in, ask about notifications (only prompts the first time).
+        .task { await Notifications.enable() }
+        // A tapped notification: jump to the right tab; that tab opens the
+        // exact chat, party or person.
+        .onChange(of: model.route) { _, route in
+            switch route {
+            case .chat: section = .chats
+            case .party: section = .parties
+            case .person: section = .match
+            case nil: break
             }
         }
     }

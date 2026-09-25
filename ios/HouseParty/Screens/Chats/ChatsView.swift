@@ -7,11 +7,12 @@ struct ChatsView: View {
     @Environment(AppModel.self) private var model
 
     @State private var chats: [Chat] = []
+    @State private var path: [UUID] = []
     @State private var loaded = false
     @State private var error: String?
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     ScreenTitle(text: "Chats")
@@ -57,6 +58,7 @@ struct ChatsView: View {
             .refreshable { await load() }
             // Reload every time the tab appears, so previews stay current.
             .onAppear { Task { await load() } }
+            .task(id: model.route) { await openFromNotification() }
         }
     }
 
@@ -68,6 +70,15 @@ struct ChatsView: View {
             self.error = error.localizedDescription
         }
         loaded = true
+    }
+
+    private func openFromNotification() async {
+        guard case .chat(let id) = model.route else { return }
+        if !chats.contains(where: { $0.id == id }) { await load() }
+        if chats.contains(where: { $0.id == id }) { path = [id] }
+        // Clear it last: changing it restarts this task, which would cut the
+        // loading above short.
+        model.route = nil
     }
 
     private func join(_ chat: Chat) {

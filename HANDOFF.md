@@ -203,13 +203,17 @@ Admin page: `http://localhost:8000/admin`, user `admin`, password from
    report, block); hosts can edit a party (title, time, pin, interests);
    after a party, a private "would you party with them again?" per guest.
    Tabs: Match 🤝, Parties (red cup), Chats (blue), Me (acid smiley).
-   **Still to build:** push notifications.
+   Push notifications are built but switched off: without Apple keys the
+   server logs them instead. To turn on (needs the $99 Apple Developer
+   account): add APNS_* keys to backend/.env, and in Xcode add the "Push
+   Notifications" capability to the target. Test in the simulator with
+   `xcrun simctl push <device> app.houseparty.HouseParty payload.json`;
+   houseparty://chat|party|person/<id> links open the same screens.
    Look: always dark; serif (New York) everywhere; pink→blue accents; the
    "like" is an acid-house smiley. All of it lives in `ios/HouseParty/Design/`
    (font, corner sizes, colors) — screens don't pick their own.
-2. **Push notifications** — nothing sends any yet (needs APNs + device-token
-   table). Suggested set: new match, invite received, invite accepted, new
-   message (mutable per chat), party reminder.
+2. **Push notifications** — built (match, invite, accepted, message with
+   per-chat mute, 2-hour reminder); waiting on the Apple Developer account.
 3. **Photos in production** — set `STORAGE_BACKEND=r2` and
    `MODERATION_BACKEND=rekognition` plus their keys in `.env`. Dev needs
    neither (local files, everything passes).

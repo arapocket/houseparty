@@ -152,6 +152,8 @@ struct Chat: Decodable, Identifiable {
     let lastMessage: String?
     let lastMessageAt: Date?
     let lastSenderName: String?
+    /// You turned off notifications for this chat.
+    let muted: Bool
 }
 
 struct ChatMember: Decodable, Identifiable {

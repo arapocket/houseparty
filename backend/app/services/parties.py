@@ -40,6 +40,7 @@ from app.models import (
     User,
 )
 from app.services import chat as chat_service
+from app.services import push
 from app.services.interests import get_or_create_interest
 from app.services.matching import are_matched, blocked_user_ids
 
@@ -147,6 +148,7 @@ async def invite(session: AsyncSession, host: User, party: Party, invitee_id: uu
             409,
         )
 
+    _notify_invited(session, host, party, invitee_id)
     if existing:
         existing.status = INVITE_PENDING
         existing.responded_at = None
@@ -157,6 +159,17 @@ async def invite(session: AsyncSession, host: User, party: Party, invitee_id: uu
     session.add(new_invite)
     await session.flush()
     return new_invite
+
+
+def _notify_invited(session: AsyncSession, host: User, party: Party, invitee_id: uuid.UUID) -> None:
+    push.queue(
+        session,
+        [invitee_id],
+        f"{host.first_name or 'Someone'} invited you to a party",
+        party.title,
+        open="party",
+        id=str(party.id),
+    )
 
 
 async def respond_to_invite(
@@ -183,6 +196,15 @@ async def respond_to_invite(
         else:
             await chat_service.remove_member(session, chat, user.id)
 
+    if accept:
+        push.queue(
+            session,
+            [party.host_id],
+            f"{user.first_name or 'Someone'} is coming",
+            party.title,
+            open="party",
+            id=str(party.id),
+        )
     await session.flush()
     return invite_row
 
@@ -402,6 +424,36 @@ def end_time(party: Party) -> datetime:
     if party.ends_at is not None:
         return party.ends_at
     return party.starts_at + timedelta(hours=settings.default_party_length_hours)
+
+
+async def send_reminders(session: AsyncSession) -> list[Party]:
+    """A heads-up to the host and everyone going, a couple of hours before.
+    Called by the same background job that completes parties."""
+    now = utcnow()
+    soon = now + timedelta(hours=settings.party_reminder_hours)
+    upcoming = list(
+        await session.scalars(
+            select(Party).where(
+                Party.status == PARTY_ACTIVE,
+                Party.reminder_sent_at.is_(None),
+                Party.starts_at > now,
+                Party.starts_at <= soon,
+            )
+        )
+    )
+    for party in upcoming:
+        going = [user.id for user in await attendees(session, party.id)]
+        push.queue(
+            session,
+            [party.host_id, *going],
+            "Starting soon",
+            f"{party.title} starts at {party.starts_at:%-I:%M %p}.",
+            open="party",
+            id=str(party.id),
+        )
+        party.reminder_sent_at = now
+    await session.flush()
+    return upcoming
 
 
 async def complete_finished_parties(session: AsyncSession) -> list[Party]:

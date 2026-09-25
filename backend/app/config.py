@@ -50,6 +50,16 @@ class Settings(BaseSettings):
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
 
+    # Push notifications (Apple). Empty = dev: notifications are logged, not
+    # sent. The private key is the contents of the .p8 file from Apple.
+    apns_key_id: str = ""
+    apns_team_id: str = ""
+    apns_private_key: str = ""
+    apns_bundle_id: str = "app.houseparty.HouseParty"
+    apns_use_sandbox: bool = True
+    # How long before a party starts its reminder goes out.
+    party_reminder_hours: int = 2
+
     # Browser origins allowed to call the API. The iOS app does not need this;
     # it only matters if a web page ever talks to the API.
     cors_origins: list[str] = []

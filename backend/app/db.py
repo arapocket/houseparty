@@ -21,11 +21,19 @@ class Base(DeclarativeBase):
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:
-    """FastAPI dependency. One session per request, rolled back on error."""
+    """FastAPI dependency. One session per request, rolled back on error.
+
+    Push notifications queued during the request go out only after the
+    commit succeeds.
+    """
+    from app.services import push
+
     async with SessionFactory() as session:
         try:
             yield session
             await session.commit()
         except Exception:
             await session.rollback()
+            push.discard_queued(session)
             raise
+        await push.send_queued(session)

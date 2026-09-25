@@ -31,6 +31,7 @@ from app.models import (
     Message,
     Party,
 )
+from app.services import push
 
 
 def utcnow() -> datetime:
@@ -154,7 +155,49 @@ async def post_message(
     message = Message(chat_id=chat.id, sender_id=sender_id, body=body[:2000])
     session.add(message)
     await session.flush()
+    await _notify_new_message(session, chat, sender_id, message.body)
     return message
+
+
+async def _notify_new_message(
+    session: AsyncSession, chat: Chat, sender_id: uuid.UUID, body: str
+) -> None:
+    """Everyone else in the chat, except anyone who muted it or blocked (or
+    was blocked by) the sender."""
+    from app.models import User
+    from app.services.matching import blocked_user_ids
+
+    blocked = await blocked_user_ids(session, sender_id)
+    recipients = [
+        member.user_id
+        for member in await active_members(session, chat.id)
+        if member.user_id != sender_id and not member.muted and member.user_id not in blocked
+    ]
+    sender = await session.get(User, sender_id)
+    name = sender.first_name if sender and sender.first_name else "Someone"
+    preview = body if len(body) <= 120 else body[:117] + "..."
+    push.queue(
+        session,
+        recipients,
+        chat.title or "Party chat",
+        f"{name}: {preview}",
+        open="chat",
+        id=str(chat.id),
+    )
+
+
+async def set_muted(session: AsyncSession, chat: Chat, user_id: uuid.UUID, muted: bool) -> None:
+    member = await session.scalar(
+        select(ChatMember).where(
+            ChatMember.chat_id == chat.id,
+            ChatMember.user_id == user_id,
+            ChatMember.left_at.is_(None),
+        )
+    )
+    if member is None:
+        raise RuleError("You are not in this chat.", 403)
+    member.muted = muted
+    await session.flush()
 
 
 async def history(
