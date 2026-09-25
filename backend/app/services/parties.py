@@ -12,7 +12,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -333,10 +333,44 @@ async def update_party(session: AsyncSession, host: User, party: Party, changes:
         raise RuleError("A party has to start in the future.")
     if ends_at is not None and ends_at <= starts_at:
         raise RuleError("The party has to end after it starts.")
+    # A cleared box arrives as "", which means "no address / no description".
+    for optional in ("address", "description"):
+        if isinstance(changes.get(optional), str) and not changes[optional].strip():
+            changes[optional] = None
+
+    # These can't be blank on a party; a null here means "leave it alone".
+    for required in ("title", "neighborhood", "starts_at"):
+        if changes.get(required, "") is None:
+            changes.pop(required)
+
+    new_interests = changes.pop("interests", None)
     for field, value in changes.items():
         setattr(party, field, value)
+
+    if new_interests is not None:
+        await session.execute(delete(PartyInterest).where(PartyInterest.party_id == party.id))
+        for raw in new_interests:
+            interest = await get_or_create_interest(session, raw)
+            session.add(PartyInterest(party_id=party.id, interest_id=interest.id))
+
+    if "title" in changes:
+        # Chats are named after the party.
+        await session.execute(
+            update(Chat).where(Chat.party_id == party.id).values(title=party.title)
+        )
     await session.flush()
     return party
+
+
+async def my_feedback(
+    session: AsyncSession, author: User, party_id: uuid.UUID
+) -> dict[uuid.UUID, bool]:
+    rows = await session.execute(
+        select(PartyFeedback.subject_id, PartyFeedback.would_party_again).where(
+            PartyFeedback.party_id == party_id, PartyFeedback.author_id == author.id
+        )
+    )
+    return {subject: again for subject, again in rows}
 
 
 async def my_parties(session: AsyncSession, user: User) -> list[Party]:

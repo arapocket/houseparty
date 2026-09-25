@@ -540,3 +540,63 @@ async def test_party_needs_a_pin(client: httpx.AsyncClient) -> None:
         json={"latitude": 40.73, "longitude": -73.99},
     )
     assert r.status_code == 200
+
+
+async def test_host_edits_party(client: httpx.AsyncClient) -> None:
+    host = await sign_up(client, "Host", ["Radiohead"])
+    guest = await sign_up(client, "Guest", ["Radiohead"])
+    await match(client, host, guest)
+    party = (await client.post("/parties", headers=host.headers, json=party_json())).json()
+    # Only the host gets the exact pin.
+    assert party["latitude"] == 40.7163
+
+    r = await client.patch(
+        f"/parties/{party['id']}",
+        headers=host.headers,
+        json={
+            "title": "Kid A, again",
+            "interests": ["Radiohead", "Natural wine"],
+            "neighborhood": None,
+        },
+    )
+    assert r.status_code == 200, r.text
+    edited = r.json()
+    assert edited["title"] == "Kid A, again"
+    assert edited["interests"] == ["Radiohead", "Natural wine"]
+    assert edited["neighborhood"] == "Tribeca"  # null left it alone
+
+    r = await client.patch(f"/parties/{party['id']}", headers=host.headers, json={"address": "  "})
+    assert r.json()["address"] is None
+
+    chat = (await client.get("/chats", headers=host.headers)).json()[0]
+    assert chat["title"] == "Kid A, again"
+
+    invite_id = (
+        await client.post(
+            f"/parties/{party['id']}/invites", headers=host.headers, json={"user_id": guest.id}
+        )
+    ).json()["id"]
+    await client.post(f"/invites/{invite_id}/respond", headers=guest.headers, json={"accept": True})
+    seen_by_guest = (await client.get(f"/parties/{party['id']}", headers=guest.headers)).json()
+    assert seen_by_guest["latitude"] is None
+
+    r = await client.patch(f"/parties/{party['id']}", headers=guest.headers, json={"title": "Mine"})
+    assert r.status_code == 403
+
+
+async def test_feedback_answers_are_only_your_own(client: httpx.AsyncClient) -> None:
+    host = await sign_up(client, "Host", ["Radiohead"])
+    a = await sign_up(client, "A", ["Radiohead"])
+    b = await sign_up(client, "B", ["Radiohead"])
+    party_id = await _throw_finished_party(client, host, [a, b])
+
+    await client.post(
+        f"/parties/{party_id}/feedback",
+        headers=a.headers,
+        json={"user_id": b.id, "would_party_again": False},
+    )
+    mine = (await client.get(f"/parties/{party_id}/feedback", headers=a.headers)).json()
+    assert mine == {"answers": {b.id: False}}
+    # B can't see what A said about them.
+    theirs = (await client.get(f"/parties/{party_id}/feedback", headers=b.headers)).json()
+    assert theirs == {"answers": {}}

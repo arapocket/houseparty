@@ -11,6 +11,8 @@ struct NewPartyView: View {
 
     /// Set by "Host again": the party this one follows on from.
     var sourceParty: Party? = nil
+    /// Set when the host is editing an existing party instead.
+    var editing: Party? = nil
     /// Called with the new party once it's saved.
     var onCreated: (Party) -> Void = { _ in }
 
@@ -81,7 +83,7 @@ struct NewPartyView: View {
 
                     ErrorText(text: error)
 
-                    Button("Create party", action: create)
+                    Button(editing == nil ? "Create party" : "Save changes", action: create)
                         .buttonStyle(.hot)
                         .disabled(!ready || working)
                 }
@@ -89,7 +91,7 @@ struct NewPartyView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .partyScreen()
-            .navigationTitle(sourceParty == nil ? "Host a party" : "Host again")
+            .navigationTitle(editing != nil ? "Edit party" : sourceParty == nil ? "Host a party" : "Host again")
             .onAppear(perform: prefill)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -103,6 +105,20 @@ struct NewPartyView: View {
     /// "Host again" starts from the old party: same name and interests,
     /// new date and pin.
     private func prefill() {
+        if let editing, title.isEmpty {
+            title = editing.title
+            description = editing.description ?? ""
+            startsAt = editing.startsAt
+            hasEnd = editing.endsAt != nil
+            endsAt = editing.endsAt ?? editing.startsAt.addingTimeInterval(4 * 3600)
+            neighborhood = editing.neighborhood
+            address = editing.address ?? ""
+            interests = editing.interests
+            if let lat = editing.latitude, let lon = editing.longitude {
+                pin = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+            }
+            return
+        }
         guard let sourceParty, title.isEmpty else { return }
         title = sourceParty.title
         description = sourceParty.description ?? ""
@@ -117,6 +133,22 @@ struct NewPartyView: View {
         Task {
             defer { working = false }
             do {
+                if let editing {
+                    let party = try await model.api.updateParty(editing.id, PartyChanges(
+                        title: title,
+                        description: description,
+                        startsAt: startsAt,
+                        endsAt: hasEnd ? endsAt : nil,
+                        neighborhood: neighborhood,
+                        latitude: pin.latitude,
+                        longitude: pin.longitude,
+                        address: address,
+                        interests: interests
+                    ))
+                    onCreated(party)
+                    dismiss()
+                    return
+                }
                 let party = try await model.api.createParty(NewParty(
                     title: title,
                     description: description.isEmpty ? nil : description,
@@ -151,6 +183,7 @@ struct NewPartyView: View {
 struct PinPicker: View {
     @Binding var pin: CLLocationCoordinate2D?
     @State private var camera: MapCameraPosition = .userLocation(fallback: .automatic)
+    @State private var centered = false
 
     var body: some View {
         MapReader { proxy in
@@ -168,6 +201,12 @@ struct PinPicker: View {
                 }
             }
             .mapStyle(.standard(pointsOfInterest: .excludingAll))
+            .onAppear {
+                // Editing: start on the existing pin rather than on you.
+                guard !centered, let pin else { return }
+                centered = true
+                camera = .region(MKCoordinateRegion(center: pin, latitudinalMeters: 1500, longitudinalMeters: 1500))
+            }
             .onTapGesture { point in
                 if let coordinate = proxy.convert(point, from: .local) {
                     withAnimation(.snappy) { pin = coordinate }

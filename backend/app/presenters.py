@@ -141,6 +141,8 @@ async def party_out(
         address=party.address if accepted else None,
         my_invite_status=my_invite.status if my_invite else ("host" if is_host else None),
         guests=guests,
+        latitude=party.latitude if is_host else None,
+        longitude=party.longitude if is_host else None,
     )
 
 

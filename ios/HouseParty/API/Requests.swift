@@ -47,6 +47,19 @@ struct NewParty: Encodable {
     var sourcePartyId: UUID?
 }
 
+/// PATCH /parties/{id}. Anything left nil stays as it is.
+struct PartyChanges: Encodable {
+    var title: String?
+    var description: String?
+    var startsAt: Date?
+    var endsAt: Date?
+    var neighborhood: String?
+    var latitude: Double?
+    var longitude: Double?
+    var address: String?
+    var interests: [String]?
+}
+
 struct UserRef: Encodable {
     let userId: UUID
 }

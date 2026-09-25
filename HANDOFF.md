@@ -199,8 +199,11 @@ Admin page: `http://localhost:8000/admin`, user `admin`, password from
    Photos: pick from the library → on-phone face check (best-effort; it
    can't run in the simulator) → server re-saves as a clean JPEG (strips
    GPS) → automatic moderation → live, or held in admin "Photos to review".
-   **Still to build:** "would you party again?" after a party, push
-   notifications, editing a party.
+   Also built: tap any person to see their full profile (like/pass,
+   report, block); hosts can edit a party (title, time, pin, interests);
+   after a party, a private "would you party with them again?" per guest.
+   Tabs: Match 🤝, Parties (red cup), Chats (blue), Me (acid smiley).
+   **Still to build:** push notifications.
    Look: always dark; serif (New York) everywhere; pink→blue accents; the
    "like" is an acid-house smiley. All of it lives in `ios/HouseParty/Design/`
    (font, corner sizes, colors) — screens don't pick their own.

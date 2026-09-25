@@ -221,6 +221,14 @@ extension APIClient {
         try await send("POST", "parties", body: party)
     }
 
+    func updateParty(_ id: UUID, _ changes: PartyChanges) async throws -> Party {
+        try await send("PATCH", "parties/\(id)", body: changes)
+    }
+
+    func myFeedback(for partyId: UUID) async throws -> MyFeedback {
+        try await send("GET", "parties/\(partyId)/feedback")
+    }
+
     func cancelParty(_ id: UUID) async throws -> Party {
         try await send("POST", "parties/\(id)/cancel")
     }

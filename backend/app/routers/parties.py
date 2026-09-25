@@ -17,6 +17,7 @@ from app.schemas import (
     GuestOut,
     InviteIn,
     InviteOut,
+    MyFeedbackOut,
     PartyIn,
     PartyOut,
     PartyUpdateIn,
@@ -115,6 +116,12 @@ async def request_bigger(
     party = await parties.get_hosted_party(session, party_id, user)
     await parties.request_bigger_party(session, user, party, data.requested_cap, data.reason)
     return SimpleOk()
+
+
+@router.get("/{party_id}/feedback")
+async def my_feedback(party_id: uuid.UUID, user: OnboardedUser, session: Session) -> MyFeedbackOut:
+    party = await parties.get_visible_party(session, party_id, user)
+    return MyFeedbackOut(answers=await parties.my_feedback(session, user, party.id))
 
 
 @router.post("/{party_id}/feedback")

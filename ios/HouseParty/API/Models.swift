@@ -111,6 +111,14 @@ struct Party: Decodable, Identifiable {
     /// "host", "pending", "accepted", "declined", or nil
     let myInviteStatus: String?
     let guests: [PublicProfile]
+    /// The exact pin. Only sent to the host.
+    let latitude: Double?
+    let longitude: Double?
+}
+
+struct MyFeedback: Decodable {
+    /// Person id (as text) -> would you party with them again.
+    let answers: [String: Bool]
 }
 
 /// The host's view of one invite.

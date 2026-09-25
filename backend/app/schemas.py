@@ -220,6 +220,7 @@ class PartyUpdateIn(BaseModel):
     address: str | None = Field(default=None, max_length=300)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
+    interests: list[str] | None = Field(default=None, min_length=1, max_length=5)
 
     @model_validator(mode="after")
     def pin_moves_as_a_pair(self) -> PartyUpdateIn:
@@ -249,6 +250,9 @@ class PartyOut(BaseModel):
     address: str | None = None
     my_invite_status: str | None = None
     guests: list[PublicProfileOut] = []
+    # The exact pin. Only ever sent to the host, so they can edit it.
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 class InviteIn(BaseModel):
@@ -364,6 +368,13 @@ class FeedbackIn(BaseModel):
 class PhotoOut(BaseModel):
     live: bool
     me: MeOut
+
+
+class MyFeedbackOut(BaseModel):
+    """Your own "would you party again?" answers for one party, so the app
+    can show what you already said. Never anyone else's."""
+
+    answers: dict[uuid.UUID, bool]
 
 
 class SimpleOk(BaseModel):

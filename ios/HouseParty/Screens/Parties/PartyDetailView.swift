@@ -21,6 +21,8 @@ struct PartyDetailView: View {
     @State private var confirmingCancel = false
     @State private var askingBigger = false
     @State private var viewing: PersonRef?
+    @State private var editing = false
+    @State private var feedback: [UUID: Bool] = [:]
     @State private var error: String?
 
     enum PickerMode: Identifiable {
@@ -39,6 +41,9 @@ struct PartyDetailView: View {
                     details(party)
                     ErrorText(text: error)
                     actions(party)
+                    if party.status == "completed" && role != "pending" {
+                        partyAgain(party)
+                    }
                     if role == "host" {
                         guestList
                     } else if !party.guests.isEmpty {
@@ -54,6 +59,21 @@ struct PartyDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
         .personSheet($viewing)
+        .toolbar {
+            if role == "host" && isActive {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Edit") { editing = true }
+                }
+            }
+        }
+        .sheet(isPresented: $editing) {
+            if let party {
+                NewPartyView(editing: party) { _ in
+                    Task { await load() }
+                    onChange()
+                }
+            }
+        }
         .sheet(item: $picking) { mode in
             MatchPicker(
                 title: mode == .invite ? "Invite" : "Suggest someone",
@@ -117,14 +137,16 @@ struct PartyDetailView: View {
                 text: [party.neighborhood, party.distanceKm.map { "\($0) km away" }]
                     .compactMap { $0 }.joined(separator: " · ")
             )
-            if let address = party.address {
+            if let address = party.address, !address.isEmpty {
                 InfoLine(icon: "house.fill", color: Theme.mint, text: address)
             } else if role != "host" {
                 InfoLine(icon: "lock.fill", color: Theme.textDim, text: "Exact address shows once you're in")
             }
             InfoLine(
                 icon: "person.2.fill", color: Theme.violet,
-                text: "\(party.guestCount) going" + (role == "host" ? " · \(party.invitesLeft) invites left" : "")
+                text: party.status == "completed"
+                    ? "\(party.guestCount) went"
+                    : "\(party.guestCount) going" + (role == "host" ? " · \(party.invitesLeft) invites left" : "")
             )
             if let description = party.description, !description.isEmpty {
                 Text(description).foregroundStyle(Theme.text.opacity(0.9))
@@ -203,7 +225,7 @@ struct PartyDetailView: View {
 
     private func whosGoing(_ party: Party) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionLabel("Who's going")
+            SectionLabel(party.status == "completed" ? "Who went" : "Who's going")
             FlowLayout(spacing: 12) {
                 ForEach(party.guests) { guest in
                     VStack(spacing: 4) {
@@ -219,6 +241,53 @@ struct PartyDetailView: View {
         .card()
     }
 
+    /// After the party: a private thumbs up or down on everyone who was
+    /// there. Nobody sees these; they help us spot people who make parties
+    /// worse.
+    private func partyAgain(_ party: Party) -> some View {
+        let everyone = ([party.host] + party.guests).filter { $0.id != model.me?.id }
+        return VStack(alignment: .leading, spacing: 12) {
+            SectionLabel("Would you party with them again?")
+            Text("Only you see your answers. Nobody is told.")
+                .font(.caption)
+                .foregroundStyle(Theme.textDim)
+            ForEach(everyone) { person in
+                HStack(spacing: 12) {
+                    Avatar(url: person.photoUrl, name: person.firstName, size: 36)
+                    Text(person.firstName ?? "Someone").font(.headline)
+                    Spacer()
+                    againButton(person, again: false)
+                    againButton(person, again: true)
+                }
+            }
+        }
+        .card()
+    }
+
+    private func againButton(_ person: PublicProfile, again: Bool) -> some View {
+        let chosen = feedback[person.id] == again
+        return Button {
+            feedback[person.id] = again
+            run { try await model.api.leaveFeedback(partyId, about: person.id, again: again) }
+        } label: {
+            Group {
+                if again {
+                    AcidSmiley(size: 24)
+                } else {
+                    Image(systemName: "hand.thumbsdown.fill").font(.headline)
+                }
+            }
+            .frame(width: 26, height: 26)
+            .opacity(chosen || feedback[person.id] == nil ? 1 : 0.35)
+        }
+        .buttonStyle(.soft(chosen ? (again ? Theme.yellow : Theme.pink) : Theme.textDim))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.cornerSmall)
+                .stroke(chosen ? (again ? Theme.yellow : Theme.pink) : .clear, lineWidth: 2)
+        )
+        .accessibilityLabel(again ? "Would party with \(person.firstName ?? "") again" : "Would not")
+    }
+
     // MARK: Actions
 
     private func load() async {
@@ -227,6 +296,12 @@ struct PartyDetailView: View {
             party = fresh
             if fresh.myInviteStatus == "host" {
                 guests = try await model.api.guests(of: partyId)
+            }
+            if fresh.status == "completed" {
+                let mine = try await model.api.myFeedback(for: partyId)
+                feedback = Dictionary(uniqueKeysWithValues: mine.answers.compactMap { key, value in
+                    UUID(uuidString: key).map { ($0, value) }
+                })
             }
             error = nil
         } catch {
