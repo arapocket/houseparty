@@ -9,6 +9,10 @@ struct HousePartyApp: App {
             RootView()
                 .environment(model)
                 .task { await model.start() }
+                // Always dark: it's a nightlife app.
+                .preferredColorScheme(.dark)
+                .tint(Theme.pink)
+                .fontDesign(.rounded)
         }
     }
 }
@@ -20,7 +24,7 @@ struct RootView: View {
     var body: some View {
         switch model.phase {
         case .loading:
-            ProgressView()
+            ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity).partyScreen()
         case .signedOut:
             SignInView()
         case .onboarding:
@@ -37,13 +41,13 @@ struct MainTabs: View {
             Tab("Discover", systemImage: "sparkles") {
                 DiscoverView()
             }
-            Tab("Parties", systemImage: "party.popper") {
-                ComingSoon(title: "Parties")
+            Tab("Parties", systemImage: "party.popper.fill") {
+                PartiesView()
             }
-            Tab("Chats", systemImage: "bubble.left.and.bubble.right") {
+            Tab("Chats", systemImage: "bubble.left.and.bubble.right.fill") {
                 ComingSoon(title: "Chats")
             }
-            Tab("Me", systemImage: "person.crop.circle") {
+            Tab("Me", systemImage: "person.crop.circle.fill") {
                 ProfileView()
             }
         }
@@ -55,9 +59,13 @@ struct ComingSoon: View {
     let title: String
 
     var body: some View {
-        NavigationStack {
-            ContentUnavailableView(title, systemImage: "hammer", description: Text("Coming next."))
-                .navigationTitle(title)
+        VStack(alignment: .leading) {
+            ScreenTitle(text: title)
+            Spacer()
+            EmptyState(title: "Coming next", message: "This part is being built.", systemImage: "hammer.fill")
+            Spacer()
         }
+        .padding(20)
+        .partyScreen()
     }
 }

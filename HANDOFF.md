@@ -180,7 +180,13 @@ Admin page: `http://localhost:8000/admin`, user `admin`, password from
 
 ### Still to do
 
-1. **iOS app** — not started. No Xcode project exists. This is the big one.
+1. **iOS app** — `ios/`, open `ios/HouseParty.xcodeproj`. Built and tried in the
+   iOS 27 simulator: sign-in, onboarding, Discover (+ Passed list), Parties
+   (list, create with map pin, invite matches, accept/decline, suggest), Me.
+   **Still to build: the Chats tab** (planning + reunion chats, WebSocket,
+   vote-to-remove), photo upload, feedback after a party, "host again".
+   Look: always-dark "night party" theme, all colors/components in
+   `ios/HouseParty/Design/` — screens don't pick their own colors.
 2. **Push notifications** — nothing sends any yet (needs APNs + device-token
    table). Suggested set: new match, invite received, invite accepted, new
    message (mutable per chat), party reminder.

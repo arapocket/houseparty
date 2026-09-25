@@ -9,48 +9,87 @@ struct ProfileView: View {
     @State private var downToParty = false
     @State private var radius = 15.0
     @State private var interests: [String] = []
+    @State private var interestsChanged = false
     @State private var confirmingDelete = false
     @State private var error: String?
 
     var body: some View {
         NavigationStack {
-            Form {
-                if let me = model.me {
-                    Section {
-                        LabeledContent("Name", value: me.firstName ?? "")
-                        if let age = me.age { LabeledContent("Age", value: "\(age)") }
-                        LabeledContent("Neighborhood", value: me.neighborhood ?? "Not set")
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    if let me = model.me {
+                        HStack(spacing: 16) {
+                            Avatar(url: me.photoUrl, name: me.firstName, size: 72)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text([me.firstName, me.age.map(String.init)].compactMap { $0 }.joined(separator: ", "))
+                                    .font(.system(size: 30, weight: .heavy, design: .rounded))
+                                if let hood = me.neighborhood {
+                                    Label(hood, systemImage: "mappin.and.ellipse")
+                                        .foregroundStyle(Theme.textDim)
+                                }
+                            }
+                        }
+                        .padding(.top, 12)
                     }
-                }
 
-                Section {
-                    Toggle("Down to party", isOn: $downToParty)
-                        .onChange(of: downToParty) { _, on in save(ProfileUpdate(downToParty: on)) }
-                }
-
-                Section {
-                    Slider(value: $radius, in: 1...50, step: 1) { editing in
-                        if !editing { save(ProfileUpdate(searchRadiusKm: Int(radius))) }
+                    Toggle(isOn: $downToParty) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Label("Down to party", systemImage: "flame.fill")
+                                .font(.headline)
+                                .foregroundStyle(downToParty ? Theme.mint : Theme.text)
+                            Text("Hosts see this on your profile.")
+                                .font(.footnote)
+                                .foregroundStyle(Theme.textDim)
+                        }
                     }
-                } header: {
-                    Text("Discover people within \(Int(radius)) km")
-                }
+                    .tint(Theme.mint)
+                    .card()
+                    .onChange(of: downToParty) { _, on in
+                        if on != model.me?.downToParty { save(ProfileUpdate(downToParty: on)) }
+                    }
 
-                Section("Interests") {
-                    InterestsEditor(interests: $interests)
-                    Button("Save interests") { save(ProfileUpdate(), interests: interests) }
-                }
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            SectionLabel("Discover radius")
+                            Text("\(Int(radius)) km")
+                                .font(.headline)
+                                .foregroundStyle(Theme.hot)
+                        }
+                        Slider(value: $radius, in: 1...50, step: 1) { editing in
+                            if !editing { save(ProfileUpdate(searchRadiusKm: Int(radius))) }
+                        }
+                    }
+                    .card()
 
-                if let error {
-                    Text(error).foregroundStyle(.red)
-                }
+                    VStack(alignment: .leading, spacing: 12) {
+                        SectionLabel("Your interests")
+                        InterestsEditor(interests: $interests)
+                            .onChange(of: interests) { interestsChanged = interests != model.me?.interests }
+                        if interestsChanged {
+                            Button("Save interests") {
+                                save(ProfileUpdate(), interests: interests)
+                            }
+                            .buttonStyle(.hot)
+                        }
+                    }
+                    .card()
 
-                Section {
-                    Button("Sign out") { model.signOut() }
-                    Button("Delete account", role: .destructive) { confirmingDelete = true }
+                    ErrorText(text: error)
+
+                    HStack(spacing: 12) {
+                        Button("Sign out") { model.signOut() }
+                            .buttonStyle(.soft)
+                        Button("Delete account") { confirmingDelete = true }
+                            .buttonStyle(.soft(Theme.pink))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 8)
                 }
+                .padding(20)
             }
-            .navigationTitle("Me")
+            .scrollDismissesKeyboard(.interactively)
+            .partyScreen()
+            .toolbarVisibility(.hidden, for: .navigationBar)
             .onAppear(perform: fillFromMe)
             .confirmationDialog(
                 "Delete your account?",
@@ -75,12 +114,14 @@ struct ProfileView: View {
         downToParty = me.downToParty
         radius = Double(me.searchRadiusKm)
         interests = me.interests
+        interestsChanged = false
     }
 
     private func save(_ changes: ProfileUpdate, interests: [String]? = nil) {
         Task {
             do {
                 try await model.saveProfile(changes, interests: interests)
+                interestsChanged = false
                 error = nil
             } catch {
                 self.error = error.localizedDescription

@@ -1,5 +1,5 @@
-// The Discover list: interest-first rows. What you share is the headline;
-// the photo is small. Ranked by shared interests, then distance.
+// Discover: interest-first cards. What you share is the headline; the photo
+// is small. Ranked by shared interests, then distance.
 
 import SwiftUI
 
@@ -13,51 +13,62 @@ struct DiscoverView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                if let error {
-                    Text(error).foregroundStyle(.red)
-                }
-                ForEach(cards) { card in
-                    DiscoverRow(card: card)
-                        .swipeActions(edge: .trailing) {
-                            Button("Pass") { decide(card, like: false) }.tint(.gray)
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    HStack(alignment: .firstTextBaseline) {
+                        ScreenTitle(text: "Discover")
+                        NavigationLink {
+                            PassedView()
+                        } label: {
+                            Label("Passed", systemImage: "arrow.uturn.backward")
                         }
-                        .swipeActions(edge: .leading) {
-                            Button("Like") { decide(card, like: true) }.tint(.pink)
-                        }
+                        .buttonStyle(.soft(Theme.textDim))
+                    }
+
+                    ErrorText(text: error)
+
+                    ForEach(cards) { card in
+                        DiscoverCardView(
+                            card: card,
+                            onLike: { decide(card, like: true) },
+                            onPass: { decide(card, like: false) }
+                        )
+                        .transition(.asymmetric(
+                            insertion: .opacity,
+                            removal: .scale(scale: 0.9).combined(with: .opacity)
+                        ))
+                    }
+
+                    if loaded && cards.isEmpty && error == nil {
+                        // Deliberately no "widen your radius?" offer here.
+                        EmptyState(
+                            title: "Nobody new nearby",
+                            message: "Add more interests, or check back later.",
+                            systemImage: "sparkles"
+                        )
+                        .padding(.top, 60)
+                    }
                 }
+                .padding(20)
             }
-            .overlay {
-                if loaded && cards.isEmpty && error == nil {
-                    // Deliberately no "widen your radius?" offer here.
-                    ContentUnavailableView(
-                        "Nobody new nearby",
-                        systemImage: "person.2",
-                        description: Text("Add more interests, or check back later.")
-                    )
-                }
-            }
-            .navigationTitle("Discover")
-            .toolbar {
-                NavigationLink("Passed") { PassedView() }
-            }
+            .partyScreen()
+            .toolbarVisibility(.hidden, for: .navigationBar)
             .refreshable { await load() }
             .task { await load() }
-            .alert(
-                "It's a match",
-                isPresented: Binding(get: { justMatched != nil }, set: { if !$0 { justMatched = nil } })
-            ) {
-                Button("Nice") {}
-            } message: {
-                Text("You and \(justMatched?.firstName ?? "they") liked each other. "
-                    + "You can invite each other to parties now.")
+            .overlay {
+                if let justMatched {
+                    MatchCelebration(person: justMatched) { self.justMatched = nil }
+                        .transition(.opacity.combined(with: .scale(scale: 1.1)))
+                }
             }
+            .animation(.smooth, value: justMatched?.id)
         }
     }
 
     private func load() async {
         do {
-            cards = try await model.api.discover()
+            let fresh = try await model.api.discover()
+            withAnimation { cards = fresh }
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -66,9 +77,9 @@ struct DiscoverView: View {
     }
 
     private func decide(_ card: DiscoverCard, like: Bool) {
-        // Take the row out straight away; put it back if the call fails.
+        // Take the card out straight away; put it back if the call fails.
         let index = cards.firstIndex { $0.id == card.id }
-        cards.removeAll { $0.id == card.id }
+        withAnimation(.snappy) { cards.removeAll { $0.id == card.id } }
         Task {
             do {
                 let result = like ? try await model.api.like(card.user.id)
@@ -82,38 +93,99 @@ struct DiscoverView: View {
     }
 }
 
-struct DiscoverRow: View {
+struct DiscoverCardView: View {
     let card: DiscoverCard
+    let onLike: () -> Void
+    let onPass: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Avatar(url: card.user.photoUrl, size: 44)
-            VStack(alignment: .leading, spacing: 4) {
-                if card.suggestedForPartyId != nil {
-                    Label("Introduced by a friend", systemImage: "hand.wave")
-                        .font(.caption.bold())
-                        .foregroundStyle(.orange)
+        VStack(alignment: .leading, spacing: 14) {
+            if card.suggestedForPartyId != nil {
+                Badge(text: "Introduced by a friend", systemImage: "hand.wave.fill", color: Theme.orange)
+            }
+
+            HStack(spacing: 12) {
+                Avatar(url: card.user.photoUrl, name: card.user.firstName, size: 48)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(nameAndAge).font(.title3.weight(.bold))
+                    Text(placeAndDistance)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.textDim)
                 }
-                // The headline: what you have in common.
-                Text(card.sharedInterests.joined(separator: " · "))
-                    .font(.headline)
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                if let bio = card.user.bio, !bio.isEmpty {
-                    Text(bio).font(.footnote).lineLimit(2)
+                Spacer()
+                if card.user.downToParty {
+                    Badge(text: "down to party", systemImage: "flame.fill", color: Theme.mint)
                 }
             }
+
+            // The headline: what you have in common.
+            VStack(alignment: .leading, spacing: 8) {
+                SectionLabel(card.sharedInterests.count == 1
+                             ? "You both love" : "You share \(card.sharedInterests.count)")
+                ChipCloud(interests: card.sharedInterests)
+            }
+
+            if let bio = card.user.bio, !bio.isEmpty {
+                Text(bio)
+                    .font(.callout)
+                    .foregroundStyle(Theme.text.opacity(0.85))
+                    .lineLimit(3)
+            }
+
+            HStack(spacing: 12) {
+                Button(action: onPass) {
+                    Image(systemName: "xmark")
+                        .font(.headline.weight(.bold))
+                        .frame(width: 22, height: 22)
+                }
+                .buttonStyle(.soft(Theme.textDim))
+                .accessibilityLabel("Pass")
+
+                Button(action: onLike) {
+                    Label("Like", systemImage: "heart.fill")
+                }
+                .buttonStyle(.hot)
+            }
         }
-        .padding(.vertical, 4)
+        .card(padding: 18)
     }
 
-    private var subtitle: String {
-        var parts = [card.user.firstName ?? "Someone"]
-        if let age = card.user.age { parts.append("\(age)") }
-        parts.append("\(card.distanceKm) km")
-        if card.user.downToParty { parts.append("down to party") }
-        return parts.joined(separator: ", ")
+    private var nameAndAge: String {
+        let name = card.user.firstName ?? "Someone"
+        return card.user.age.map { "\(name), \($0)" } ?? name
+    }
+
+    private var placeAndDistance: String {
+        [card.user.neighborhood, "\(card.distanceKm) km away"]
+            .compactMap { $0 }
+            .joined(separator: " · ")
+    }
+}
+
+/// Full-screen "It's a match" moment.
+struct MatchCelebration: View {
+    let person: PublicProfile
+    let onClose: () -> Void
+
+    var body: some View {
+        ZStack {
+            Theme.background.opacity(0.92).ignoresSafeArea()
+            VStack(spacing: 20) {
+                Avatar(url: person.photoUrl, name: person.firstName, size: 110)
+                    .shadow(color: Theme.pink.opacity(0.7), radius: 30)
+                Text("It's a match!")
+                    .font(.system(size: 44, weight: .black, design: .rounded))
+                    .foregroundStyle(Theme.hot)
+                Text("You and \(person.firstName ?? "they") liked each other.\n"
+                    + "You can invite each other to parties now.")
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(Theme.textDim)
+                Button("Keep looking", action: onClose)
+                    .buttonStyle(.hot)
+                    .padding(.top, 8)
+            }
+            .padding(32)
+        }
     }
 }
 
@@ -121,67 +193,57 @@ struct DiscoverRow: View {
 struct PassedView: View {
     @Environment(AppModel.self) private var model
     @State private var people: [PassedPerson] = []
+    @State private var loaded = false
     @State private var error: String?
 
     var body: some View {
-        List {
-            if let error {
-                Text(error).foregroundStyle(.red)
-            }
-            ForEach(people) { person in
-                HStack(spacing: 12) {
-                    Avatar(url: person.user.photoUrl, size: 36)
-                    VStack(alignment: .leading) {
-                        Text(person.user.firstName ?? "Someone").font(.headline)
-                        Text(person.sharedInterests.joined(separator: " · "))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+        ScrollView {
+            VStack(spacing: 12) {
+                ErrorText(text: error)
+                ForEach(people) { person in
+                    HStack(spacing: 12) {
+                        Avatar(url: person.user.photoUrl, name: person.user.firstName, size: 40)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(person.user.firstName ?? "Someone").font(.headline)
+                            ChipCloud(interests: person.sharedInterests)
+                        }
+                        Spacer()
+                        Button { like(person) } label: {
+                            Image(systemName: "heart.fill")
+                        }
+                        .buttonStyle(.soft(Theme.pink))
+                        .accessibilityLabel("Like \(person.user.firstName ?? "")")
                     }
-                    Spacer()
-                    Button("Like") { like(person) }
-                        .buttonStyle(.bordered)
-                        .tint(.pink)
+                    .card(padding: 14)
+                }
+                if loaded && people.isEmpty {
+                    EmptyState(
+                        title: "Nobody passed",
+                        message: "People you pass on in Discover show up here.",
+                        systemImage: "arrow.uturn.backward"
+                    )
                 }
             }
+            .padding(20)
         }
-        .overlay {
-            if people.isEmpty { ContentUnavailableView("Nobody passed", systemImage: "arrow.uturn.left") }
-        }
+        .partyScreen()
         .navigationTitle("Passed")
         .task { await load() }
     }
 
     private func load() async {
         do { people = try await model.api.passed() } catch { self.error = error.localizedDescription }
+        loaded = true
     }
 
     private func like(_ person: PassedPerson) {
         Task {
             do {
                 _ = try await model.api.like(person.user.id)
-                people.removeAll { $0.id == person.id }
+                withAnimation { people.removeAll { $0.id == person.id } }
             } catch {
                 self.error = error.localizedDescription
             }
         }
-    }
-}
-
-/// A small round photo, or initials-free placeholder when there isn't one.
-struct Avatar: View {
-    let url: String?
-    let size: CGFloat
-
-    var body: some View {
-        AsyncImage(url: url.flatMap(URL.init(string:))) { image in
-            image.resizable().scaledToFill()
-        } placeholder: {
-            Image(systemName: "person.fill")
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(.quaternary)
-        }
-        .frame(width: size, height: size)
-        .clipShape(Circle())
     }
 }

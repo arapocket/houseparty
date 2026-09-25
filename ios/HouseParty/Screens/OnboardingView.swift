@@ -14,37 +14,53 @@ struct OnboardingView: View {
     @State private var error: String?
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("About you") {
-                    TextField("First name", text: $firstName)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 6) {
+                    ScreenTitle(text: "Who are you?")
+                    Text("This is what people see when you show up in Discover.")
+                        .foregroundStyle(Theme.textDim)
+                }
+                .padding(.top, 24)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    SectionLabel("About you")
+                    TextField("", text: $firstName, prompt: Text("First name").foregroundStyle(Theme.textDim))
                         .textContentType(.givenName)
+                        .fieldStyle()
                     DatePicker("Birthday", selection: $birthday, displayedComponents: .date)
-                    TextField("Neighborhood", text: $neighborhood)
+                        .fieldStyle()
+                    TextField("", text: $neighborhood, prompt: Text("Neighborhood").foregroundStyle(Theme.textDim))
+                        .fieldStyle()
                 }
 
-                Section {
-                    InterestsEditor(interests: $interests)
-                } header: {
-                    Text("Interests")
-                } footer: {
+                VStack(alignment: .leading, spacing: 12) {
+                    SectionLabel("Your interests")
                     Text("Be specific: \"Kid A era Radiohead\" beats \"music\". Up to 12.")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.textDim)
+                    InterestsEditor(interests: $interests)
                 }
+                .card()
 
-                if let error {
-                    Text(error).foregroundStyle(.red)
-                }
+                ErrorText(text: error)
 
-                Section {
-                    Button("Done", action: save)
+                VStack(spacing: 10) {
+                    Button("I'm ready", action: save)
+                        .buttonStyle(.hot)
                         .disabled(working || firstName.isEmpty || interests.isEmpty)
-                } footer: {
-                    Text("We'll ask for your location so we can find people nearby. "
-                        + "Nobody sees where you are, only roughly how far away.")
+                    Label(
+                        "We'll ask for your location. Nobody sees where you are, only roughly how far.",
+                        systemImage: "location.fill"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(Theme.textDim)
                 }
             }
-            .navigationTitle("Your profile")
+            .padding(20)
         }
+        .scrollDismissesKeyboard(.interactively)
+        .partyScreen()
     }
 
     private func save() {
@@ -70,39 +86,66 @@ struct OnboardingView: View {
     }
 }
 
-/// Type an interest, pick from popular spellings as you go, remove with a swipe.
+/// Type an interest and pick from popular spellings as you go. Your
+/// interests show as chips; tap the x to drop one.
 struct InterestsEditor: View {
     @Environment(AppModel.self) private var model
     @Binding var interests: [String]
+    /// 12 for a profile, 5 for a party.
+    var limit = 12
 
     @State private var draft = ""
     @State private var suggestions: [InterestSuggestion] = []
+    @FocusState private var typing: Bool
 
-    private let maxInterests = 12
     private let maxLength = 40
 
     var body: some View {
-        ForEach(interests, id: \.self) { interest in
-            Text(interest)
-        }
-        .onDelete { interests.remove(atOffsets: $0) }
+        VStack(alignment: .leading, spacing: 14) {
+            if !interests.isEmpty {
+                FlowLayout {
+                    ForEach(interests, id: \.self) { interest in
+                        InterestChip(text: interest) {
+                            withAnimation(.snappy) { interests.removeAll { $0 == interest } }
+                        }
+                    }
+                }
+            }
 
-        if interests.count < maxInterests {
-            TextField("Add an interest", text: $draft)
-                .onSubmit { add(draft) }
+            if interests.count < limit {
+                HStack {
+                    Image(systemName: "plus.circle.fill").foregroundStyle(Theme.hot)
+                    TextField("", text: $draft, prompt: Text("Add an interest").foregroundStyle(Theme.textDim))
+                        .focused($typing)
+                        .onSubmit { add(draft) }
+                        .submitLabel(.done)
+                }
+                .fieldStyle()
+                // Tapping anywhere on the box, not just the text, starts typing.
+                .contentShape(.rect)
+                .onTapGesture { typing = true }
                 .onChange(of: draft) { _, text in
                     if text.count > maxLength { draft = String(text.prefix(maxLength)) }
                 }
                 // Re-runs (and cancels the last run) every time the text changes.
                 .task(id: draft) { await loadSuggestions(for: draft) }
 
-            // Suggesting existing spellings is how wording converges, so
-            // "radiohead" and "Radiohead!" end up as one interest.
-            ForEach(suggestions, id: \.display) { suggestion in
-                Button {
-                    add(suggestion.display)
-                } label: {
-                    LabeledContent(suggestion.display, value: "\(suggestion.usageCount)")
+                // Suggesting existing spellings is how wording converges, so
+                // "radiohead" and "Radiohead!" end up as one interest.
+                if !suggestions.isEmpty {
+                    FlowLayout {
+                        ForEach(suggestions, id: \.display) { suggestion in
+                            Button { add(suggestion.display) } label: {
+                                HStack(spacing: 6) {
+                                    Text(suggestion.display)
+                                    Text("\(suggestion.usageCount)")
+                                        .font(.caption.weight(.heavy))
+                                        .foregroundStyle(Theme.textDim)
+                                }
+                            }
+                            .buttonStyle(.soft(Theme.color(for: suggestion.display)))
+                        }
+                    }
                 }
             }
         }
@@ -113,9 +156,10 @@ struct InterestsEditor: View {
         guard clean.count >= 2,
               !interests.contains(where: { $0.caseInsensitiveCompare(clean) == .orderedSame })
         else { return }
-        interests.append(clean)
+        withAnimation(.snappy) { interests.append(clean) }
         draft = ""
         suggestions = []
+        typing = true  // keep the keyboard up for the next one
     }
 
     private func loadSuggestions(for text: String) async {

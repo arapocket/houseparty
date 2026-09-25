@@ -43,6 +43,14 @@ def interest_names(user: User) -> list[str]:
     return [ui.interest.display for ui in ordered]
 
 
+def shared_interests(me: User, other: User) -> list[str]:
+    """What two people have in common, in the order *I* listed my interests,
+    so the same things always show up in the same order on my screens."""
+    theirs = {ui.interest_id for ui in other.interests}
+    mine = sorted(me.interests, key=lambda ui: ui.position)
+    return [ui.interest.display for ui in mine if ui.interest_id in theirs]
+
+
 def public_profile(user: User) -> PublicProfileOut:
     return PublicProfileOut(
         id=user.id,

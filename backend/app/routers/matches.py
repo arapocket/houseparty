@@ -12,15 +12,13 @@ router = APIRouter(prefix="/matches", tags=["matches"])
 
 @router.get("")
 async def list_matches(user: OnboardedUser, session: Session) -> list[MatchOut]:
-    mine = {ui.interest_id for ui in user.interests}
     out = []
     for other, matched_at in await matching.list_matches(session, user):
-        shared = [ui.interest.display for ui in other.interests if ui.interest_id in mine]
         out.append(
             MatchOut(
                 user=presenters.public_profile(other),
                 matched_at=matched_at,
-                shared_interests=shared,
+                shared_interests=presenters.shared_interests(user, other),
             )
         )
     return out

@@ -35,13 +35,10 @@ async def discover(
 @router.get("/passed")
 async def passed(user: OnboardedUser, session: Session) -> list[PassedOut]:
     """People you passed on. Like one from here and it counts like any other like."""
-    mine = {ui.interest_id for ui in user.interests}
     return [
         PassedOut(
             user=presenters.public_profile(other),
-            shared_interests=[
-                ui.interest.display for ui in other.interests if ui.interest_id in mine
-            ],
+            shared_interests=presenters.shared_interests(user, other),
             passed_at=passed_at,
         )
         for other, passed_at in await matching.list_passed(session, user)

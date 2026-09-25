@@ -168,6 +168,10 @@ async def discover(
     by_user: dict[uuid.UUID, list[Interest]] = {}
     for user_id, interest in shared_rows:
         by_user.setdefault(user_id, []).append(interest)
+    # Show them in the order I listed my interests, the same on every row.
+    my_order = {ui.interest_id: ui.position for ui in me.interests}
+    for interests in by_user.values():
+        interests.sort(key=lambda interest: my_order[interest.id])
 
     return [
         DiscoverCandidate(
