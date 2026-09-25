@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24">
+  <!-- Same face as AcidSmiley.swift, as a file so the tab bar can use it. -->
+  <circle cx="12" cy="12" r="10.6" fill="#FFE14D" stroke="#000" stroke-width="1.2"/>
+  <ellipse cx="9.2" cy="9.2" rx="1.15" ry="1.9"/>
+  <ellipse cx="14.8" cy="9.2" rx="1.15" ry="1.9"/>
+  <g fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round">
+    <path d="M6.9 13.3 Q12 19.6 17.1 13.3"/>
+    <path d="M6.2 12.5 L7.2 13.7"/>
+    <path d="M17.8 12.5 L16.8 13.7"/>
+  </g>
+</svg>

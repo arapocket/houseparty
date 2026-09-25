@@ -61,7 +61,7 @@ struct MainTabs: View {
             Tab("Chats", systemImage: "bubble.left.and.bubble.right.fill") {
                 ChatsView()
             }
-            Tab("Me", systemImage: "person.crop.circle.fill") {
+            Tab("Me", image: "AcidSmiley") {
                 ProfileView()
             }
         }
