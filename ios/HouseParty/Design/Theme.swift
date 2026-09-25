@@ -119,6 +119,8 @@ struct ScreenTitle: View {
         Text(text)
             .font(.system(size: 38, weight: .heavy, design: Theme.fontDesign))
             .foregroundStyle(Theme.hot)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)  // "Saturday Magic" still fits next to a button
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

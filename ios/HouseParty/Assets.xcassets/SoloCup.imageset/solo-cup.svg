@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24">
+  <!-- A party cup: rim, body, the ridge band, and the base. The gaps
+       between the pieces are the lines you see on a real one. -->
+  <path d="M4 2.5 H20 L19.74 4.5 H4.26 Z"/>
+  <path d="M4.39 5.5 H19.61 L18.68 12.5 H5.32 Z"/>
+  <path d="M5.45 13.5 H18.55 L18.36 15 H5.64 Z"/>
+  <path d="M5.78 16 H18.22 L17.5 21.5 H6.5 Z"/>
+</svg>

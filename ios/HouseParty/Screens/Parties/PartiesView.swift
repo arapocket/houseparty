@@ -30,7 +30,7 @@ struct PartiesView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     HStack(alignment: .firstTextBaseline) {
-                        ScreenTitle(text: "Parties")
+                        ScreenTitle(text: Self.title())
                         Button { creating = true } label: {
                             Label("Host", systemImage: "plus")
                         }
@@ -68,6 +68,16 @@ struct PartiesView: View {
             .sheet(isPresented: $creating) {
                 NewPartyView { _ in Task { await load() } }
             }
+        }
+    }
+
+    /// The weekend gets its own name.
+    static func title(on date: Date = .now) -> String {
+        switch Calendar.current.component(.weekday, from: date) {
+        case 6: "Friday Rush"
+        case 7: "Saturday Magic"
+        case 1: "Sunday Scaries"
+        default: "Parties"
         }
     }
 

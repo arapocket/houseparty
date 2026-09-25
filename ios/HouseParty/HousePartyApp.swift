@@ -52,10 +52,10 @@ struct RootView: View {
 struct MainTabs: View {
     var body: some View {
         TabView {
-            Tab("Discover", systemImage: "sparkles") {
+            Tab("Discover", systemImage: "binoculars.fill") {
                 DiscoverView()
             }
-            Tab("Parties", systemImage: "party.popper.fill") {
+            Tab("Parties", image: "SoloCup") {
                 PartiesView()
             }
             Tab("Chats", systemImage: "bubble.left.and.bubble.right.fill") {
